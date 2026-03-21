@@ -64,21 +64,35 @@
 
 ## ✨ 功能特性
 
-### 🖼️ 相框模式
+### 🖼️ 相框模式（9 种）
 
 | 模式 | 描述 | 适用场景 |
 |------|------|----------|
-| **全边框** | 四周围绕彩色边框 | 经典相框风格 |
-| **底部加框** | 底部留白区域展示信息 | 简洁大方 |
-| **底边条** | 窄条底部信息栏 | 最小遮挡 |
-| **浮动卡片** | 半透明覆盖卡片 | 现代感设计 |
-| **自定义文字卡片** | 上图下文排版 | 社交媒体分享 |
+| **全边框 (FULL_BORDER)** | 四周围绕彩色边框，底部留白展示信息 | 经典相框风格，适合社交媒体分享 |
+| **底部加框 (BOTTOM_BAR)** | 底部加宽留白区域，两侧窄边框 | 简洁大方，突出照片主体 |
+| **底边条 (BOTTOM_STRIPE)** | 窄条底部信息栏，边框高度减半 | 最小遮挡，保持照片完整性 |
+| **自定义文字卡片 (CUSTOM_CARD)** | 上图下文排版，图片缩放在上，底部保留文字区 | 社交媒体分享，海报风格 |
+| **浮动卡片 (FLOATING_CARD)** | 半透明覆盖卡片，可调节透明度 | 现代感设计，不遮挡照片 |
+| **高端莱卡 (PREMIUM_LEICA)** | 莱卡风格高端边框设计 | 专业摄影展示，高端质感 |
+| **自定义莱卡 (CUSTOM_LEICA)** | 可自定义参数的莱卡风格 | 个性化专业展示 |
+| **音乐流光 (MUSIC_FLOW)** | 动态流光渐变边框，自动取色 | 音乐主题相框，动感效果 |
+| **音乐纯色 (MUSIC_SOLID)** | 纯色边框，简洁稳重 | 简约风格，突出音乐信息 |
+
+### 🎨 相框自定义功能
+
+| 功能 | 描述 |
+|------|------|
+| **边框粗细调节** | 通过滑条调节边框厚度比例（默认 4%） |
+| **底部留白调节** | 独立控制底部额外留白高度（默认 2%） |
+| **流光渐变效果** | 支持静态流光渐变边框，可使用封面取色或自定义颜色 |
+| **覆盖模式** | 支持纯覆盖模式（无边框），仅显示文字卡片 |
+| **背景透明度** | 浮动/卡片模式可调节背景透明度（默认 35%） |
 
 ### 🎵 音乐信息集成
 
 - **实时取色** - 从当前播放的音乐封面自动提取主色调
-- **通知监听** - 获取歌名、歌手、专辑、播放进度
-- **耳机识别** - 自动检测并显示当前音频输出设备型号
+- **通知监听** - 获取歌名、歌手、专辑、播放进度、应用图标
+- **耳机识别** - 自动检测并显示当前音频输出设备型号（蓝牙 A2DP/LE、有线/USB 等）
 - **流光渐变** - 支持静态/动态渐变边框效果
 
 ### 📸 照片元数据解析
@@ -88,21 +102,32 @@
 - 📱 **设备型号** - 显示拍摄设备
 - 🎬 **实况照片** - 识别并导出 Motion Photo 相框
 
-### 🎨 自定义选项
+### 🎨 文字系统
 
-- **颜色选择** - 自动取色或手动指定（支持 HEX 输入）
+#### 文字分区与独立开关
+
+| 文字区域 | 独立开关 | 字号调节 | 默认状态 |
+|----------|----------|----------|----------|
+| **照片信息** | ✅ | 0.6x - 1.6x | 最小字号 |
+| **音乐信息** | ✅ | 0.6x - 1.6x | 最小字号 |
+| **耳机信息** | ✅ | 0.6x - 1.6x | 最小字号 |
+| **自定义文字** | ✅ | 0.6x - 1.6x | 最小字号 |
+
+#### 文字样式
+
+- **颜色选择** - 自动反色或手动指定（支持 HEX 输入 `#RRGGBB` / `#AARRGGBB`）
 - **字体导入** - 支持 TTF 字体文件导入
-- **文字开关** - 照片信息/音乐信息/自定义文字独立控制
-- **字号调节** - 各文字区域独立字号比例滑条
-- **背景透明度** - 浮动/卡片模式可调背景透明度
 - **文字描边** - 纯文字模式保持可读性
+- **对齐方式** - 支持左对齐、居中对齐、右对齐
 
 ### 📤 导出与分享
 
-- **格式选择** - PNG（无损）/ JPEG / WEBP
-- **保存到相册** - 一键导出到系统相册
-- **直接分享** - 触发系统分享意图
-- **实况相框** - Motion Photo 视频片段导出
+| 功能 | 描述 |
+|------|------|
+| **格式选择** | PNG（无损）/ JPEG / WEBP |
+| **保存到相册** | 一键导出到系统相册 |
+| **直接分享** | 触发系统分享意图 |
+| **实况相框** | Motion Photo 视频片段导出（JPEG 容器附带原视频流） |
 
 ---
 
@@ -213,19 +238,38 @@ Amu-Music-Photo-Frame-APP/
 │   │   ├── java/com/example/musicframe/
 │   │   │   ├── MainActivity.kt              # 主界面
 │   │   │   ├── MusicFrameViewModel.kt       # 视图模型
+│   │   │   ├── MusicFrameViewModelFactory.kt
 │   │   │   ├── image/
 │   │   │   │   ├── FrameComposer.kt         # 相框合成器
 │   │   │   │   ├── FrameConfig.kt           # 相框配置
+│   │   │   │   ├── FrameMode.kt             # 相框模式枚举
 │   │   │   │   └── PhotoMetadataReader.kt   # 照片元数据
 │   │   │   ├── media/
 │   │   │   │   ├── NowPlayingListenerService.kt  # 音乐监听
-│   │   │   │   └── HeadphoneInfoRepository.kt    # 耳机信息
+│   │   │   │   ├── HeadphoneInfoRepository.kt    # 耳机信息
+│   │   │   │   └── MusicMetadataRepository.kt    # 音乐元数据
 │   │   │   ├── export/
 │   │   │   │   └── ImageExporter.kt         # 图片导出
+│   │   │   ├── domain/model/                # 领域模型
+│   │   │   │   ├── BorderParams.kt
+│   │   │   │   ├── FrameControlAction.kt
+│   │   │   │   ├── FrameDrawParams.kt
+│   │   │   │   ├── FrameModeExt.kt
+│   │   │   │   ├── MusicFrameUiState.kt
+│   │   │   │   └── TextBlockParams.kt
+│   │   │   ├── model/                       # 数据模型
+│   │   │   │   ├── HeadphoneInfo.kt
+│   │   │   │   └── MusicMetadata.kt
 │   │   │   └── ui/
-│   │   │       ├── FrameControls.kt         # 控制组件
-│   │   │       ├── ColorSelectionRow.kt     # 颜色选择
-│   │   │       └── ExportFormatSelector.kt  # 格式选择
+│   │   │       ├── components/              # UI 组件
+│   │   │       │   └── ColorSelectionRow.kt
+│   │   │       ├── screen/                  # 界面屏幕
+│   │   │       │   ├── FrameControls.kt
+│   │   │       │   └── ExportFormatSelector.kt
+│   │   │       └── theme/                   # 主题
+│   │   │           ├── Color.kt
+│   │   │           ├── Theme.kt
+│   │   │           └── Type.kt
 │   │   ├── res/                             # 资源文件
 │   │   └── AndroidManifest.xml              # 应用清单
 │   └── build.gradle.kts                     # 模块构建配置
@@ -262,6 +306,10 @@ android {
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.01.00"))
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.palette:palette-ktx")
+    implementation("androidx.exifinterface:exifinterface")
+    implementation("com.google.accompanist:accompanist-permissions")
     // ... 其他依赖
 }
 ```
@@ -291,11 +339,13 @@ dependencies {
 
 | 控制项 | 操作 |
 |--------|------|
-| 相框模式 | 点击模式芯片切换 |
-| 文字显示 | 勾选/取消对应开关 |
-| 字号大小 | 拖动滑条调节 |
+| 相框模式 | 点击模式芯片切换（9 种模式） |
+| 文字显示 | 勾选/取消对应开关（照片/音乐/耳机/自定义） |
+| 字号大小 | 拖动滑条调节（0.6x - 1.6x） |
 | 颜色选择 | 点击预设色或输入 HEX |
 | 边框粗细 | 拖动"相框粗细"滑条 |
+| 底部留白 | 拖动"底部留白"滑条 |
+| 流光效果 | 切换"静态流光"开关 |
 | 导出格式 | 选择 PNG/JPEG/WEBP |
 
 ### 第五步：导出分享
@@ -311,14 +361,15 @@ dependencies {
 ### 已完成 ✅
 
 - [x] 核心相框合成功能
+- [x] 9 种相框模式（全边框/底部加框/底边条/自定义卡片/浮动卡片/高端莱卡/自定义莱卡/音乐流光/音乐纯色）
 - [x] 音乐通知监听集成
-- [x] 耳机型号识别
-- [x] 照片元数据解析
-- [x] 多种相框模式
-- [x] 自定义颜色与字体
-- [x] 流光渐变效果
-- [x] 多格式导出
-- [x] 代码架构重构（UI/Domain/Data）
+- [x] 耳机型号识别（蓝牙 A2DP/LE、有线/USB）
+- [x] 照片元数据解析（EXIF/GPS/设备/实况照片）
+- [x] 文字分区独立控制（4 区域独立开关 + 字号调节）
+- [x] 自定义颜色与字体（HEX 输入/TTF 导入）
+- [x] 流光渐变效果（静态/动态）
+- [x] 多格式导出（PNG/JPEG/WEBP/Motion Photo）
+- [x] 代码架构重构（UI/Domain/Data 分层）
 - [x] Detekt 代码质量检查
 
 ### 待优化 🚧
