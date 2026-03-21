@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="md_theme_dark_onPrimary">#000000</color>
+    <color name="md_theme_dark_primary">#FF99A8</color>
+    <color name="md_theme_light_onPrimary">#FFFFFF</color>
+    <color name="md_theme_light_primary">#FF4D6B</color>
+    <string name="app_name">Music Photo Frame</string>
+    <string name="permission_rationale">需要读取图片与通知权限以创建音乐相框</string>
+    <style name="Theme.MobileMusicPhotoFrame" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

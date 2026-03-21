@@ -1,0 +1,15 @@
+R_DEF: Internal format may change without notice
+local
+color ic_launcher_background
+color md_theme_dark_onPrimary
+color md_theme_dark_primary
+color md_theme_light_onPrimary
+color md_theme_light_primary
+drawable ic_launcher_foreground
+mipmap ic_launcher
+mipmap ic_launcher_round
+string app_name
+string permission_rationale
+style Theme.MobileMusicPhotoFrame
+xml backup_rules
+xml data_extraction_rules
