@@ -2,6 +2,8 @@ package com.example.musicframe
 
 import android.Manifest
 import android.app.Activity
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -11,6 +13,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.service.notification.NotificationListenerService
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -126,6 +129,9 @@ fun musicFrameScreen(
     var headphoneColorHex by remember { mutableStateOf("") }
     var bottomTextInput by remember { mutableStateOf(state.customBottomText) }
 
+    // 检查 NotificationListenerService 是否已启用
+    val notificationListenerEnabled = isNotificationListenerEnabled(context)
+
     LaunchedEffect(state.customBottomText) {
         bottomTextInput = state.customBottomText
     }
@@ -171,7 +177,10 @@ fun musicFrameScreen(
                 )
             }
         )
-        notificationPermissionButton(onClick = { showNotificationDialog = true })
+        notificationPermissionButton(
+            isEnabled = notificationListenerEnabled,
+            onClick = { showNotificationDialog = true }
+        )
         fontPickerRow(
             customFontName = state.customFontName,
             onPickFont = {
@@ -321,9 +330,14 @@ private fun imagePickerButton(
 }
 
 @Composable
-private fun notificationPermissionButton(onClick: () -> Unit) {
+private fun notificationPermissionButton(
+    isEnabled: Boolean,
+    onClick: () -> Unit
+) {
     Button(onClick = onClick) {
-        Text("开启正在播放权限")
+        Text(
+            if (isEnabled) "正在播放权限已开启 ✓" else "开启正在播放权限"
+        )
     }
 }
 
@@ -530,4 +544,20 @@ private fun logContentDialog(
             }
         }
     )
+}
+
+/**
+ * 检查 NotificationListenerService 是否已启用
+ */
+@Composable
+private fun isNotificationListenerEnabled(context: Context): Boolean {
+    val packageName = context.packageName
+    val flat = Settings.Secure.getString(
+        context.contentResolver,
+        "enabled_notification_listeners"
+    ) ?: return false
+
+    return flat.split(":").any {
+        ComponentName.unflattenFromString(it)?.packageName == packageName
+    }
 }
