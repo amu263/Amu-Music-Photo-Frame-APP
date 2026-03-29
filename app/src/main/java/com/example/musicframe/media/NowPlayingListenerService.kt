@@ -2,6 +2,7 @@ package com.example.musicframe.media
 
 import android.app.Notification
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
@@ -132,8 +133,10 @@ class NowPlayingListenerService : NotificationListenerService() {
             bitmap
         } catch (e: Exception) {
             logBuilder.appendLine("[$timestamp] ✗ 获取应用图标失败：${e.message}")
-            logBuilder.appendLine("[$timestamp] 尝试从通知小图标加载...")
-            // 如果无法获取 app 图标，尝试从通知的小图标加载
+            logBuilder.appendLine("[$timestamp] 异常类型：${e.javaClass.simpleName}")
+            
+            // 尝试方案 2：从通知小图标加载
+            logBuilder.appendLine("[$timestamp] 尝试方案 2：从通知小图标加载...")
             try {
                 val smallIcon = statusBarNotification.notification.smallIcon?.loadDrawable(this)
                 if (smallIcon != null) {
@@ -143,11 +146,15 @@ class NowPlayingListenerService : NotificationListenerService() {
                     bitmap
                 } else {
                     logBuilder.appendLine("[$timestamp] ✗ 通知小图标为 null")
+                    
+                    // 尝试方案 3：使用包名作为备用图标标识
+                    logBuilder.appendLine("[$timestamp] 备用方案：使用包名 $packageName 作为标识")
+                    
                     writeDebugLog(logBuilder.toString())
                     null
                 }
             } catch (e2: Exception) {
-                logBuilder.appendLine("[$timestamp] ✗ 从通知图标加载也失败：${e2.message}")
+                logBuilder.appendLine("[$timestamp] ✗ 从通知图标加载失败：${e2.message}")
                 writeDebugLog(logBuilder.toString())
                 null
             }
@@ -162,7 +169,8 @@ class NowPlayingListenerService : NotificationListenerService() {
         
         return try {
             val pm = packageManager
-            val appInfo = pm.getApplicationInfo(packageName, 0)
+            // 尝试使用 GET_UNINSTALLED_PACKAGES 标志
+            val appInfo = pm.getApplicationInfo(packageName, PackageManager.GET_UNINSTALLED_PACKAGES)
             val appName = pm.getApplicationLabel(appInfo)?.toString()
             logBuilder.appendLine("[$timestamp] ✓ 成功获取应用名称：$appName")
             writeDebugLog(logBuilder.toString())
@@ -170,8 +178,11 @@ class NowPlayingListenerService : NotificationListenerService() {
         } catch (e: Exception) {
             logBuilder.appendLine("[$timestamp] ✗ 获取应用名称失败：${e.message}")
             logBuilder.appendLine("[$timestamp] 异常类型：${e.javaClass.simpleName}")
+            
+            // 备用方案：返回包名作为应用名称
+            logBuilder.appendLine("[$timestamp] 使用备用方案：返回包名 $packageName")
             writeDebugLog(logBuilder.toString())
-            null
+            packageName
         }
     }
 
