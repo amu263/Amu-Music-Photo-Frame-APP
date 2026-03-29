@@ -18,8 +18,6 @@ import com.example.musicframe.export.ImageExporter.MotionPhotoInfo
 import com.example.musicframe.image.FrameComposer
 import com.example.musicframe.image.FrameConfig
 import com.example.musicframe.image.FrameMode
-import com.example.musicframe.image.MAX_TEXT_SCALE
-import com.example.musicframe.image.MIN_TEXT_SCALE
 import com.example.musicframe.image.PhotoMetadataReader
 import com.example.musicframe.media.HeadphoneInfoRepository
 import com.example.musicframe.media.MusicMetadataRepository
@@ -33,7 +31,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
-@Suppress("TooManyFunctions")
 class MusicFrameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = MusicMetadataRepository()
@@ -111,119 +108,14 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         rebuildFrame()
     }
 
-    fun onFrameColorSelected(color: Int?) {
-        _uiState.update { it.copy(userFrameColor = color) }
-        rebuildFrame()
-    }
-
-    fun onTextColorSelected(color: Int?) {
-        _uiState.update { it.copy(userTextColor = color) }
-        rebuildFrame()
-    }
-
-    fun onHeadphoneTextColorSelected(color: Int?) {
-        _uiState.update { it.copy(userHeadphoneTextColor = color) }
-        rebuildFrame()
-    }
-
-    fun toggleOverlayOnly(value: Boolean) {
-        _uiState.update { it.copy(overlayOnly = value) }
-        rebuildFrame()
-    }
-
-    fun toggleStaticFlowFrame(value: Boolean) {
-        _uiState.update { it.copy(useStaticFlowFrame = value) }
-        rebuildFrame()
-    }
-
-    fun toggleCustomText(value: Boolean) {
-        _uiState.update { it.copy(showCustomText = value) }
-        rebuildFrame()
-    }
-
     fun toggleHeadphoneInfo(value: Boolean) {
         _uiState.update { it.copy(showHeadphoneInfo = value) }
         rebuildFrame()
     }
 
-    fun togglePhotoMetadata(value: Boolean) {
-        _uiState.update { it.copy(showPhotoMetadata = value) }
-        rebuildFrame()
-    }
-
-    fun toggleMusicMetadata(value: Boolean) {
-        _uiState.update { it.copy(showMusicMetadata = value) }
-        rebuildFrame()
-    }
-
-    fun updateFrameRatio(ratio: Float) {
-        _uiState.update { it.copy(frameRatio = ratio) }
-        rebuildFrame()
-    }
-
-    fun updateBottomExtraRatio(ratio: Float) {
-        _uiState.update { it.copy(bottomExtraRatio = ratio) }
-        rebuildFrame()
-    }
-
     fun updateFrameMode(mode: FrameMode) {
-        _uiState.update { state ->
-            val adjustedBottomExtra = if (mode == FrameMode.CUSTOM_CARD) {
-                state.bottomExtraRatio.coerceAtLeast(
-                    0.05f
-                )
-            } else {
-                state.bottomExtraRatio
-            }
-            state.copy(frameMode = mode, bottomExtraRatio = adjustedBottomExtra)
-        }
+        _uiState.update { it.copy(frameMode = mode) }
         rebuildFrame()
-    }
-
-    fun updatePhotoTextScale(scale: Float) {
-        _uiState.update { it.copy(photoTextScale = scale.coerceIn(MIN_TEXT_SCALE, MAX_TEXT_SCALE)) }
-        rebuildFrame()
-    }
-
-    fun updateMusicTextScale(scale: Float) {
-        _uiState.update { it.copy(musicTextScale = scale.coerceIn(MIN_TEXT_SCALE, MAX_TEXT_SCALE)) }
-        rebuildFrame()
-    }
-
-    fun updateHeadphoneTextScale(scale: Float) {
-        _uiState.update { it.copy(headphoneTextScale = scale.coerceIn(MIN_TEXT_SCALE, MAX_TEXT_SCALE)) }
-        rebuildFrame()
-    }
-
-    fun updateCustomTextScale(scale: Float) {
-        _uiState.update { it.copy(customTextScale = scale.coerceIn(MIN_TEXT_SCALE, MAX_TEXT_SCALE)) }
-        rebuildFrame()
-    }
-
-    fun updateBottomText(text: String) {
-        _uiState.update { it.copy(customBottomText = text) }
-        rebuildFrame()
-    }
-
-    fun setFrameColorFromHex(hex: String) {
-        parseColor(hex)?.let { color ->
-            _uiState.update { it.copy(userFrameColor = color) }
-            rebuildFrame()
-        }
-    }
-
-    fun setTextColorFromHex(hex: String) {
-        parseColor(hex)?.let { color ->
-            _uiState.update { it.copy(userTextColor = color) }
-            rebuildFrame()
-        }
-    }
-
-    fun setHeadphoneTextColorFromHex(hex: String) {
-        parseColor(hex)?.let { color ->
-            _uiState.update { it.copy(userHeadphoneTextColor = color) }
-            rebuildFrame()
-        }
     }
 
     fun saveFramedImage() {
@@ -266,34 +158,19 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
 
     fun exportMotionPhoto() {
         val state = _uiState.value
-        state.framedBitmap?.let { bitmap ->
-            state.photoMetadata?.motionVideoOffset?.let { motionOffset ->
-                state.selectedImageUri?.let { sourceUri ->
-                    viewModelScope.launch {
-                        _uiState.update { it.copy(isExporting = true, message = null) }
-                        runCatching {
-                            exporter.exportMotionPhoto(bitmap, MotionPhotoInfo(sourceUri, motionOffset))
-                        }.onSuccess { uri ->
-                            _uiState.update { state ->
-                                state.copy(
-                                    isExporting = false,
-                                    message = "已导出实况相框",
-                                    pendingShareRequest = ShareRequest(
-                                        uri,
-                                        ImageExporter.Format.JPEG.mimeType
-                                    )
-                                )
-                            }
-                        }.onFailure { error ->
-                            _uiState.update { state ->
-                                state.copy(
-                                    isExporting = false,
-                                    message = error.localizedMessage
-                                )
-                            }
-                        }
-                    }
+        val bitmap = state.framedBitmap ?: return
+        val motionOffset = state.photoMetadata?.motionVideoOffset ?: return
+        val sourceUri = state.selectedImageUri ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isExporting = true, message = null) }
+            runCatching {
+                exporter.exportMotionPhoto(bitmap, MotionPhotoInfo(sourceUri, motionOffset))
+            }.onSuccess { uri ->
+                _uiState.update { state ->
+                    state.copy(isExporting = false, message = "已导出实况相框", pendingShareRequest = ShareRequest(uri, ImageExporter.Format.JPEG.mimeType))
                 }
+            }.onFailure { error ->
+                _uiState.update { state -> state.copy(isExporting = false, message = error.localizedMessage) }
             }
         }
     }
@@ -315,26 +192,10 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
             val state = _uiState.value
             val source = state.originalBitmap ?: return@launch
             val config = FrameConfig(
-                frameRatio = state.frameRatio,
-                bottomExtraRatio = state.bottomExtraRatio,
                 frameMode = state.frameMode,
-                userFrameColor = state.userFrameColor,
-                userTextColor = state.userTextColor,
-                defaultFrameColor = DEFAULT_FRAME_COLOR,
-                overlayOnly = state.overlayOnly,
-                showPhotoMetadata = state.showPhotoMetadata,
-                showMusicMetadata = state.showMusicMetadata,
-                showCustomText = state.showCustomText,
-                photoTextScale = state.photoTextScale,
-                musicTextScale = state.musicTextScale,
-                customTextScale = state.customTextScale,
-                overlayBackgroundAlpha = state.overlayBackgroundAlpha,
-                typeface = state.customTypeface,
-                customBottomText = state.customBottomText,
-                staticFlowFrame = state.useStaticFlowFrame,
                 showHeadphoneInfo = state.showHeadphoneInfo,
-                headphoneTextScale = state.headphoneTextScale,
                 headphoneTextColor = state.userHeadphoneTextColor,
+                typeface = state.customTypeface,
                 photoMetadata = state.photoMetadata
             )
             val framed = frameComposer.compose(
@@ -416,19 +277,12 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.update { it.copy(customTypeface = typeface, customFontPath = path, customFontName = File(path).name) }
     }
 
-    private fun parseColor(hex: String): Int? {
-        val cleaned = hex.trim().removePrefix("#")
-        if (cleaned.length != 6 && cleaned.length != 8) return null
-        return runCatching { cleaned.toLong(16).toInt() or if (cleaned.length == 6) 0xFF000000.toInt() else 0 }.getOrNull()
-    }
-
     override fun onCleared() {
         headphoneRepository.stop()
         super.onCleared()
     }
 
     companion object {
-        private const val DEFAULT_FRAME_COLOR = 0xFFF5F0E6.toInt()
         private const val MAX_BITMAP_DIMENSION = 2048
         private const val PREFS_NAME = "music_frame_prefs"
         private const val KEY_FONT_PATH = "custom_font_path"

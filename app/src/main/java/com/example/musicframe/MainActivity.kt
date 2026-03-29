@@ -124,17 +124,10 @@ fun musicFrameScreen(
     var showLogDialog by remember { mutableStateOf(false) }
     var logContent by remember { mutableStateOf<String?>(null) }
 
-    var frameColorHex by remember { mutableStateOf("") }
-    var textColorHex by remember { mutableStateOf("") }
     var headphoneColorHex by remember { mutableStateOf("") }
-    var bottomTextInput by remember { mutableStateOf(state.customBottomText) }
 
     // 检查 NotificationListenerService 是否已启用
     val notificationListenerEnabled = isNotificationListenerEnabled(context)
-
-    LaunchedEffect(state.customBottomText) {
-        bottomTextInput = state.customBottomText
-    }
 
     val scrollState = rememberScrollState()
     val shareRequest = state.pendingShareRequest
@@ -196,39 +189,12 @@ fun musicFrameScreen(
 
         frameControls(
             state = state,
-            frameColorHex = frameColorHex,
-            textColorHex = textColorHex,
             headphoneColorHex = headphoneColorHex,
-            bottomText = bottomTextInput,
-            onFrameColorHexChange = { frameColorHex = it },
-            onTextColorHexChange = { textColorHex = it },
             onHeadphoneColorHexChange = { headphoneColorHex = it },
-            onBottomTextChange = {
-                bottomTextInput = it
-                viewModel.updateBottomText(it)
-            },
-            onApplyFrameHex = { viewModel.setFrameColorFromHex(frameColorHex) },
-            onApplyTextHex = { viewModel.setTextColorFromHex(textColorHex) },
-            onApplyHeadphoneHex = { viewModel.setHeadphoneTextColorFromHex(headphoneColorHex) },
+            onApplyHeadphoneHex = { },
             onAction = { action ->
                 when (action) {
-                    is FrameControlAction.FrameColorSelected -> viewModel.onFrameColorSelected(action.color)
-                    is FrameControlAction.TextColorSelected -> viewModel.onTextColorSelected(action.color)
-                    is FrameControlAction.HeadphoneTextColorSelected -> viewModel.onHeadphoneTextColorSelected(
-                        action.color
-                    )
-                    is FrameControlAction.FrameRatio -> viewModel.updateFrameRatio(action.ratio)
-                    is FrameControlAction.BottomExtraRatio -> viewModel.updateBottomExtraRatio(action.ratio)
-                    is FrameControlAction.ToggleOverlay -> viewModel.toggleOverlayOnly(action.enabled)
-                    is FrameControlAction.ToggleStaticFlow -> viewModel.toggleStaticFlowFrame(action.enabled)
-                    is FrameControlAction.TogglePhoto -> viewModel.togglePhotoMetadata(action.enabled)
-                    is FrameControlAction.ToggleMusic -> viewModel.toggleMusicMetadata(action.enabled)
                     is FrameControlAction.ToggleHeadphone -> viewModel.toggleHeadphoneInfo(action.enabled)
-                    is FrameControlAction.ToggleCustomText -> viewModel.toggleCustomText(action.enabled)
-                    is FrameControlAction.UpdatePhotoTextScale -> viewModel.updatePhotoTextScale(action.scale)
-                    is FrameControlAction.UpdateMusicTextScale -> viewModel.updateMusicTextScale(action.scale)
-                    is FrameControlAction.UpdateHeadphoneTextScale -> viewModel.updateHeadphoneTextScale(action.scale)
-                    is FrameControlAction.UpdateCustomTextScale -> viewModel.updateCustomTextScale(action.scale)
                     is FrameControlAction.SetMode -> viewModel.updateFrameMode(action.mode)
                 }
             }
