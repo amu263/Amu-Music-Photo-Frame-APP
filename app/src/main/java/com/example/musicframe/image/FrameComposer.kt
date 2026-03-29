@@ -36,7 +36,8 @@ class FrameComposer {
         val textColor = config.customTextColor() ?: invertedColor(frameColor)
         val headphoneColor = config.headphoneColor(invertedColor(frameColor))
         val headphoneIcon = if (headphoneLines.isNotEmpty()) createHeadphoneIcon(invertedColor(frameColor)) else null
-        val badgeIcon = musicMetadata?.appIcon
+        // 优先使用音乐 app 图标，如果没有则使用耳机图标作为备用
+        val badgeIcon = musicMetadata?.appIcon ?: headphoneIcon
         val renderParams = DrawRenderParams(
             source = source,
             musicLines = musicLines,
@@ -412,9 +413,9 @@ class FrameComposer {
                 android.graphics.Typeface.BOLD
             )
         }
-        // 从 renderParams 获取音乐播放器名称（第二行信息）
-        val playerText = renderParams.musicLines.getOrElse(1) { "光锥音乐" }
-        val playerWidth = playerPaint.measureText(playerText)
+        // 从 renderParams 获取音乐播放器名称（第二行信息），如果没有则不显示文字
+        val playerText = renderParams.musicLines.getOrElse(1) { "" }
+        val hasPlayerInfo = playerText.isNotBlank() && renderParams.appIcon != null
         
         // 使用 || 的边界作为对齐基准
         val separatorFontMetrics = separatorPaint.fontMetrics
@@ -422,28 +423,42 @@ class FrameComposer {
         val separatorBottom = secondRowCenterY + separatorFontMetrics.bottom
         val separatorActualHeight = separatorBottom - separatorTop  // || 的实际字体高度
         
-        // 计算整体宽度：图标 + 间距 + || + 间距 + 文字
-        val iconSize = separatorActualHeight  // 图标是正方形，边长 = || 的实际高度
+        // 计算图标尺寸（正方形，边长 = || 的实际高度）
+        val iconSize = separatorActualHeight
         val iconGap = separatorActualHeight * 0.3f  // 图标与 || 的间距
-        val totalWidth = iconSize + iconGap * 2 + separatorWidth + playerWidth
         
-        // 整体居中对齐：起始 X = 中心 X - 整体宽度 / 2
-        val startX = centerX - totalWidth / 2f
-        
-        // 绘制 App 图标（左侧，正方形，上下边缘与 || 完全对齐）
-        val iconLeft = startX
-        val iconRect = RectF(iconLeft, separatorTop, iconLeft + iconSize, separatorBottom)
-        renderParams.appIcon?.let { appIcon ->
-            canvas.drawBitmap(appIcon, null, iconRect, Paint(Paint.ANTI_ALIAS_FLAG))
+        if (hasPlayerInfo) {
+            // 有播放器信息：绘制 图标 + || + 文字
+            val playerWidth = playerPaint.measureText(playerText)
+            val totalWidth = iconSize + iconGap * 2 + separatorWidth + playerWidth
+            val startX = centerX - totalWidth / 2f
+            
+            // 绘制 App 图标（左侧，正方形，上下边缘与 || 完全对齐）
+            val iconLeft = startX
+            val iconRect = RectF(iconLeft, separatorTop, iconLeft + iconSize, separatorBottom)
+            renderParams.appIcon?.let { appIcon ->
+                canvas.drawBitmap(appIcon, null, iconRect, Paint(Paint.ANTI_ALIAS_FLAG))
+            }
+            
+            // 绘制 || 分隔符（图标右侧）
+            val separatorX = iconLeft + iconSize + iconGap
+            canvas.drawText("||", separatorX + separatorWidth / 2f, secondRowCenterY, separatorPaint)
+            
+            // 绘制音乐播放器名称（|| 右侧，与 || 基线对齐）
+            val playerX = separatorX + separatorWidth + iconGap
+            canvas.drawText(playerText, playerX, secondRowCenterY, playerPaint)
+        } else {
+            // 没有播放器信息：只绘制耳机图标（居中）
+            val iconRect = RectF(
+                centerX - iconSize / 2f,
+                separatorTop,
+                centerX + iconSize / 2f,
+                separatorBottom
+            )
+            renderParams.appIcon?.let { icon ->
+                canvas.drawBitmap(icon, null, iconRect, Paint(Paint.ANTI_ALIAS_FLAG))
+            }
         }
-        
-        // 绘制 || 分隔符（图标右侧）
-        val separatorX = iconLeft + iconSize + iconGap
-        canvas.drawText("||", separatorX + separatorWidth / 2f, secondRowCenterY, separatorPaint)
-        
-        // 绘制音乐播放器名称（|| 右侧，与 || 基线对齐）
-        val playerX = separatorX + separatorWidth + iconGap
-        canvas.drawText(playerText, playerX, secondRowCenterY, playerPaint)
         
         // 相机参数
         val infoPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -694,35 +709,58 @@ class FrameComposer {
                 android.graphics.Typeface.BOLD
             )
         }
-        val playerText = renderParams.musicLines.getOrElse(1) { "光锥音乐" }
-        val playerWidth = playerPaint.measureText(playerText)
+        // 从 renderParams 获取音乐播放器名称（第二行信息），如果没有则不显示文字
+        val playerText = renderParams.musicLines.getOrElse(1) { "" }
+        val hasPlayerInfo = playerText.isNotBlank() && renderParams.appIcon != null
         
         val iconSize = separatorHeight
         val iconGap = separatorHeight * 0.3f
-        val totalWidth = iconSize + iconGap * 2 + separatorWidth + playerWidth
-        val startX = width / 2f - totalWidth / 2f
         
-        val separatorFontMetrics = separatorPaint.fontMetrics
-        val separatorTop = secondRowCenterY + separatorFontMetrics.top
-        val separatorBottom = secondRowCenterY + separatorFontMetrics.bottom
-        val separatorActualHeight = separatorBottom - separatorTop
-        
-        val actualIconSize = separatorActualHeight
-        val actualIconGap = separatorActualHeight * 0.3f
-        val actualTotalWidth = actualIconSize + actualIconGap * 2 + separatorWidth + playerWidth
-        val actualStartX = width / 2f - actualTotalWidth / 2f
-        
-        val iconLeft = actualStartX
-        val iconRect = RectF(iconLeft, separatorTop, iconLeft + actualIconSize, separatorBottom)
-        renderParams.appIcon?.let { appIcon ->
-            canvas.drawBitmap(appIcon, null, iconRect, Paint(Paint.ANTI_ALIAS_FLAG))
+        if (hasPlayerInfo) {
+            // 有播放器信息：绘制 图标 + || + 文字
+            val playerWidth = playerPaint.measureText(playerText)
+            val totalWidth = iconSize + iconGap * 2 + separatorWidth + playerWidth
+            val startX = width / 2f - totalWidth / 2f
+            
+            val separatorFontMetrics = separatorPaint.fontMetrics
+            val separatorTop = secondRowCenterY + separatorFontMetrics.top
+            val separatorBottom = secondRowCenterY + separatorFontMetrics.bottom
+            val separatorActualHeight = separatorBottom - separatorTop
+            
+            val actualIconSize = separatorActualHeight
+            val actualIconGap = separatorActualHeight * 0.3f
+            val actualTotalWidth = actualIconSize + actualIconGap * 2 + separatorWidth + playerWidth
+            val actualStartX = width / 2f - actualTotalWidth / 2f
+            
+            val iconLeft = actualStartX
+            val iconRect = RectF(iconLeft, separatorTop, iconLeft + actualIconSize, separatorBottom)
+            renderParams.appIcon?.let { appIcon ->
+                canvas.drawBitmap(appIcon, null, iconRect, Paint(Paint.ANTI_ALIAS_FLAG))
+            }
+            
+            val separatorX = iconLeft + actualIconSize + actualIconGap
+            canvas.drawText("||", separatorX + separatorWidth / 2f, secondRowCenterY, separatorPaint)
+            
+            val playerX = separatorX + separatorWidth + actualIconGap
+            canvas.drawText(playerText, playerX, secondRowCenterY, playerPaint)
+        } else {
+            // 没有播放器信息：只绘制耳机图标（居中）
+            val separatorFontMetrics = separatorPaint.fontMetrics
+            val separatorTop = secondRowCenterY + separatorFontMetrics.top
+            val separatorBottom = secondRowCenterY + separatorFontMetrics.bottom
+            val separatorActualHeight = separatorBottom - separatorTop
+            val iconSizeCentered = separatorActualHeight
+            
+            val iconRect = RectF(
+                width / 2f - iconSizeCentered / 2f,
+                separatorTop,
+                width / 2f + iconSizeCentered / 2f,
+                separatorBottom
+            )
+            renderParams.appIcon?.let { icon ->
+                canvas.drawBitmap(icon, null, iconRect, Paint(Paint.ANTI_ALIAS_FLAG))
+            }
         }
-        
-        val separatorX = iconLeft + actualIconSize + actualIconGap
-        canvas.drawText("||", separatorX + separatorWidth / 2f, secondRowCenterY, separatorPaint)
-        
-        val playerX = separatorX + separatorWidth + actualIconGap
-        canvas.drawText(playerText, playerX, secondRowCenterY, playerPaint)
         
         // 3. 相机参数
         val infoPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
