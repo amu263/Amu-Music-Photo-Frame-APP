@@ -137,14 +137,53 @@ class NowPlayingListenerService : NotificationListenerService() {
         return runCatching { toBitmap(width, height, Bitmap.Config.ARGB_8888) }.getOrNull()
     }
 
+    // 常见音乐播放器包名映射表
+    private val musicAppNames = mapOf(
+        "ink.trantor.coneplayer.gp" to "光锥音乐",
+        "com.netease.cloudmusic" to "网易云音乐",
+        "com.netease.cloudmusic.lite" to "网易云音乐概念版",
+        "com.tencent.qqmusic" to "QQ 音乐",
+        "com.tencent.qqmusiclocal" to "QQ 音乐本地版",
+        "com.xiami.music" to "虾米音乐",
+        "fm.xiami.main" to "虾米音乐",
+        "com.kuwo.player" to "酷我音乐",
+        "com.kugou.android" to "酷狗音乐",
+        "com.spotify.music" to "Spotify",
+        "com.google.android.apps.music" to "Google Play 音乐",
+        "com.amazon.mp3" to "Amazon Music",
+        "com.apple.android.music" to "Apple Music"
+    )
+
     private fun loadAppIcon(statusBarNotification: StatusBarNotification): Bitmap? {
         val packageName = statusBarNotification.packageName
         val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         val logBuilder = StringBuilder()
         logBuilder.appendLine("[$timestamp] 尝试加载 app 图标：$packageName")
+        
+        // 方案 1：优先从通知的 largeIcon 获取（通知自带的图标）
+        logBuilder.appendLine("[$timestamp] 尝试方案 1：从通知 largeIcon 获取...")
+        try {
+            val largeIcon = statusBarNotification.notification.largeIcon
+            if (largeIcon != null) {
+                // 尝试从 extras 获取 ICON_BITMAP
+                val extras = statusBarNotification.notification.extras
+                val bitmap = extras.getParcelable<Bitmap>(Notification.EXTRA_LARGE_ICON)
+                    ?: extras.getParcelable<Bitmap>("android.largeIcon")
+                if (bitmap != null) {
+                    logBuilder.appendLine("[$timestamp] ✓ 从 largeIcon 获取成功")
+                    writeDebugLog(logBuilder.toString())
+                    return bitmap
+                }
+            }
+            logBuilder.appendLine("[$timestamp] ✗ largeIcon 为 null 或转换失败")
+        } catch (e: Exception) {
+            logBuilder.appendLine("[$timestamp] ✗ largeIcon 加载失败：${e.message}")
+        }
+        
+        // 方案 2：使用 packageManager 获取应用图标
+        logBuilder.appendLine("[$timestamp] 尝试方案 2：从 packageManager 获取...")
         logBuilder.appendLine("[$timestamp] cachedPackageManager: ${cachedPackageManager != null}")
         
-        // 使用缓存的 packageManager，如果为空则使用 applicationContext 的
         val pm = cachedPackageManager ?: applicationContext.packageManager
         logBuilder.appendLine("[$timestamp] 使用 packageManager: ${pm != null}")
         
@@ -159,10 +198,9 @@ class NowPlayingListenerService : NotificationListenerService() {
         } catch (e: Exception) {
             logBuilder.appendLine("[$timestamp] ✗ 获取应用图标失败：${e.message}")
             logBuilder.appendLine("[$timestamp] 异常类型：${e.javaClass.simpleName}")
-            logBuilder.appendLine("[$timestamp] 异常堆栈：${android.util.Log.getStackTraceString(e)}")
             
-            // 尝试方案 2：从通知小图标加载
-            logBuilder.appendLine("[$timestamp] 尝试方案 2：从通知小图标加载...")
+            // 方案 3：从通知小图标加载
+            logBuilder.appendLine("[$timestamp] 尝试方案 3：从通知小图标加载...")
             try {
                 val smallIcon = statusBarNotification.notification.smallIcon?.loadDrawable(this)
                 if (smallIcon != null) {
@@ -172,10 +210,6 @@ class NowPlayingListenerService : NotificationListenerService() {
                     bitmap
                 } else {
                     logBuilder.appendLine("[$timestamp] ✗ 通知小图标为 null")
-                    
-                    // 尝试方案 3：使用包名作为备用图标标识
-                    logBuilder.appendLine("[$timestamp] 备用方案：使用包名 $packageName 作为标识")
-                    
                     writeDebugLog(logBuilder.toString())
                     null
                 }
@@ -192,14 +226,24 @@ class NowPlayingListenerService : NotificationListenerService() {
         val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         val logBuilder = StringBuilder()
         logBuilder.appendLine("[$timestamp] 尝试加载 app 名称：$packageName")
+        
+        // 方案 1：从映射表获取
+        val mappedName = musicAppNames[packageName]
+        if (mappedName != null) {
+            logBuilder.appendLine("[$timestamp] ✓ 从映射表获取：$mappedName")
+            writeDebugLog(logBuilder.toString())
+            return mappedName
+        }
+        logBuilder.appendLine("[$timestamp] ✗ 映射表中未找到")
+        
+        // 方案 2：使用 packageManager 获取应用名称
+        logBuilder.appendLine("[$timestamp] 尝试方案 2：从 packageManager 获取...")
         logBuilder.appendLine("[$timestamp] cachedPackageManager: ${cachedPackageManager != null}")
         
-        // 使用缓存的 packageManager，如果为空则使用当前实例的
         val pm = cachedPackageManager ?: packageManager
         logBuilder.appendLine("[$timestamp] 使用 packageManager: ${pm != null}")
         
         return try {
-            // 尝试使用 GET_UNINSTALLED_PACKAGES 标志
             val appInfo = pm.getApplicationInfo(packageName, PackageManager.GET_UNINSTALLED_PACKAGES)
             val appName = pm.getApplicationLabel(appInfo)?.toString()
             logBuilder.appendLine("[$timestamp] ✓ 成功获取应用名称：$appName")
@@ -209,10 +253,18 @@ class NowPlayingListenerService : NotificationListenerService() {
             logBuilder.appendLine("[$timestamp] ✗ 获取应用名称失败：${e.message}")
             logBuilder.appendLine("[$timestamp] 异常类型：${e.javaClass.simpleName}")
             
-            // 备用方案：返回包名作为应用名称
-            logBuilder.appendLine("[$timestamp] 使用备用方案：返回包名 $packageName")
+            // 方案 3：从通知的 tickerText 获取（有些播放器会在这里显示应用名）
+            logBuilder.appendLine("[$timestamp] 尝试方案 3：从通知 tickerText 获取...")
+            val tickerText = statusBarNotification.notification.tickerText?.toString()
+            if (!tickerText.isNullOrBlank()) {
+                logBuilder.appendLine("[$timestamp] ✓ 从 tickerText 获取：$tickerText")
+                writeDebugLog(logBuilder.toString())
+                return tickerText
+            }
+            logBuilder.appendLine("[$timestamp] ✗ tickerText 为空")
+            
             writeDebugLog(logBuilder.toString())
-            packageName
+            null
         }
     }
 
