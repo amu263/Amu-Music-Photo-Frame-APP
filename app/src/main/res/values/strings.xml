@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Music Photo Frame</string>
+    <string name="permission_rationale">需要读取图片与通知权限以创建音乐相框</string>
+</resources>
