@@ -15,6 +15,11 @@ import androidx.annotation.RequiresApi
 import androidx.core.graphics.drawable.toBitmap
 import androidx.palette.graphics.Palette
 import com.example.musicframe.model.MusicMetadata
+import java.io.File
+import java.io.FileWriter
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class NowPlayingListenerService : NotificationListenerService() {
 
@@ -113,19 +118,37 @@ class NowPlayingListenerService : NotificationListenerService() {
 
     private fun loadAppIcon(statusBarNotification: StatusBarNotification): Bitmap? {
         val packageName = statusBarNotification.packageName
-        Log.d("NowPlayingListener", "加载 app 图标：$packageName")
+        val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+        val logBuilder = StringBuilder()
+        logBuilder.appendLine("[$timestamp] 尝试加载 app 图标：$packageName")
+        
         return try {
             val pm = packageManager
             val drawable = pm.getApplicationIcon(packageName)
-            Log.d("NowPlayingListener", "成功获取应用图标：${drawable.javaClass}")
-            drawable.safeToBitmap()
+            logBuilder.appendLine("[$timestamp] ✓ 成功获取应用图标：${drawable.javaClass}")
+            val bitmap = drawable.safeToBitmap()
+            logBuilder.appendLine("[$timestamp] ✓ 图标转换为 Bitmap 成功")
+            writeDebugLog(logBuilder.toString())
+            bitmap
         } catch (e: Exception) {
-            Log.e("NowPlayingListener", "获取应用图标失败：${e.message}")
+            logBuilder.appendLine("[$timestamp] ✗ 获取应用图标失败：${e.message}")
+            logBuilder.appendLine("[$timestamp] 尝试从通知小图标加载...")
             // 如果无法获取 app 图标，尝试从通知的小图标加载
             try {
-                statusBarNotification.notification.smallIcon?.loadDrawable(this)?.safeToBitmap()
+                val smallIcon = statusBarNotification.notification.smallIcon?.loadDrawable(this)
+                if (smallIcon != null) {
+                    val bitmap = smallIcon.safeToBitmap()
+                    logBuilder.appendLine("[$timestamp] ✓ 从通知小图标加载成功")
+                    writeDebugLog(logBuilder.toString())
+                    bitmap
+                } else {
+                    logBuilder.appendLine("[$timestamp] ✗ 通知小图标为 null")
+                    writeDebugLog(logBuilder.toString())
+                    null
+                }
             } catch (e2: Exception) {
-                Log.e("NowPlayingListener", "从通知图标加载也失败：${e2.message}")
+                logBuilder.appendLine("[$timestamp] ✗ 从通知图标加载也失败：${e2.message}")
+                writeDebugLog(logBuilder.toString())
                 null
             }
         }
@@ -133,16 +156,38 @@ class NowPlayingListenerService : NotificationListenerService() {
 
     private fun loadAppName(statusBarNotification: StatusBarNotification): String? {
         val packageName = statusBarNotification.packageName
-        Log.d("NowPlayingListener", "加载 app 名称：$packageName")
+        val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+        val logBuilder = StringBuilder()
+        logBuilder.appendLine("[$timestamp] 尝试加载 app 名称：$packageName")
+        
         return try {
             val pm = packageManager
             val appInfo = pm.getApplicationInfo(packageName, 0)
             val appName = pm.getApplicationLabel(appInfo)?.toString()
-            Log.d("NowPlayingListener", "成功获取应用名称：$appName")
+            logBuilder.appendLine("[$timestamp] ✓ 成功获取应用名称：$appName")
+            writeDebugLog(logBuilder.toString())
             appName
         } catch (e: Exception) {
-            Log.e("NowPlayingListener", "获取应用名称失败：${e.message}")
+            logBuilder.appendLine("[$timestamp] ✗ 获取应用名称失败：${e.message}")
+            logBuilder.appendLine("[$timestamp] 异常类型：${e.javaClass.simpleName}")
+            writeDebugLog(logBuilder.toString())
             null
+        }
+    }
+
+    private fun writeDebugLog(content: String) {
+        try {
+            val logDir = File(getExternalFilesDir(null), "debug_logs")
+            if (!logDir.exists()) {
+                logDir.mkdirs()
+            }
+            val logFile = File(logDir, "music_player_debug.txt")
+            FileWriter(logFile, true).use { writer ->
+                writer.appendLine(content)
+                writer.appendLine("-".repeat(50))
+            }
+        } catch (e: Exception) {
+            Log.e("NowPlayingListener", "写入日志失败：${e.message}")
         }
     }
 
