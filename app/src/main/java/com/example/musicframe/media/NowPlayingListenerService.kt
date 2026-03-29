@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.Looper
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.graphics.drawable.toBitmap
 import androidx.palette.graphics.Palette
@@ -112,20 +113,37 @@ class NowPlayingListenerService : NotificationListenerService() {
 
     private fun loadAppIcon(statusBarNotification: StatusBarNotification): Bitmap? {
         val packageName = statusBarNotification.packageName
-        val pm = runCatching { packageManager }.getOrNull() ?: return null
-        val drawable = runCatching { pm.getApplicationIcon(packageName) }.getOrNull()
-            ?: statusBarNotification.notification.smallIcon?.loadDrawable(this)
-        return drawable?.safeToBitmap()
+        Log.d("NowPlayingListener", "加载 app 图标：$packageName")
+        return try {
+            val pm = packageManager
+            val drawable = pm.getApplicationIcon(packageName)
+            Log.d("NowPlayingListener", "成功获取应用图标：${drawable.javaClass}")
+            drawable.safeToBitmap()
+        } catch (e: Exception) {
+            Log.e("NowPlayingListener", "获取应用图标失败：${e.message}")
+            // 如果无法获取 app 图标，尝试从通知的小图标加载
+            try {
+                statusBarNotification.notification.smallIcon?.loadDrawable(this)?.safeToBitmap()
+            } catch (e2: Exception) {
+                Log.e("NowPlayingListener", "从通知图标加载也失败：${e2.message}")
+                null
+            }
+        }
     }
 
     private fun loadAppName(statusBarNotification: StatusBarNotification): String? {
-        val pm = runCatching { packageManager }.getOrNull() ?: return null
-        val result = runCatching {
-            pm.getApplicationInfo(statusBarNotification.packageName, 0)
-        }.getOrNull()?.let { appInfo ->
-            pm.getApplicationLabel(appInfo)?.toString()
+        val packageName = statusBarNotification.packageName
+        Log.d("NowPlayingListener", "加载 app 名称：$packageName")
+        return try {
+            val pm = packageManager
+            val appInfo = pm.getApplicationInfo(packageName, 0)
+            val appName = pm.getApplicationLabel(appInfo)?.toString()
+            Log.d("NowPlayingListener", "成功获取应用名称：$appName")
+            appName
+        } catch (e: Exception) {
+            Log.e("NowPlayingListener", "获取应用名称失败：${e.message}")
+            null
         }
-        return result
     }
 
     companion object {
