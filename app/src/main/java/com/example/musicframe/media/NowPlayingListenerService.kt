@@ -17,7 +17,13 @@ class NowPlayingListenerService : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
-        activeNotifications.forEach { updateFromNotification(it) }
+        // 当服务连接时，遍历所有活跃的通知，查找媒体播放通知
+        // 这样可以捕获在 app 启动前就已经在播放的音乐
+        val mediaNotifications = activeNotifications.filter { 
+            it.notification.isMediaStyle() 
+        }
+        // 只更新最后一个媒体通知（通常是当前正在播放的）
+        mediaNotifications.lastOrNull()?.let { updateFromNotification(it) }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
