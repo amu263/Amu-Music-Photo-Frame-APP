@@ -9,7 +9,7 @@
 
 **一款智能音乐取色相框生成工具 · 让每一张照片都有专属的 BGM**
 
-[![GitHub Repo stars](https://img.shields.io/github/stars/amu/Mobile-music-photo-frame-app?style=social)](https://github.com/amu/Mobile-music-photo-frame-app)
+[![GitHub Repo stars](https://img.shields.io/github/stars/amu263/Amu-Music-Photo-Frame-APP?style=social)](https://github.com/amu263/Amu-Music-Photo-Frame-APP)
 
 [📱 功能特性](#-功能特性) • [🔐 权限说明](#-权限说明) • [🛠️ 构建编译](#️-构建编译) • [📸 使用指南](#-使用指南) • [🎨 项目生态](#-项目生态)
 
