@@ -6,6 +6,8 @@ import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.annotation.RequiresApi
@@ -17,13 +19,15 @@ class NowPlayingListenerService : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
-        // 当服务连接时，遍历所有活跃的通知，查找媒体播放通知
+        // 延迟检查活跃通知，确保 activeNotifications 已完全加载
         // 这样可以捕获在 app 启动前就已经在播放的音乐
-        val mediaNotifications = activeNotifications.filter { 
-            it.notification.isMediaStyle() 
-        }
-        // 只更新最后一个媒体通知（通常是当前正在播放的）
-        mediaNotifications.lastOrNull()?.let { updateFromNotification(it) }
+        Handler(Looper.getMainLooper()).postDelayed({
+            val mediaNotifications = activeNotifications.filter { 
+                it.notification.isMediaStyle() 
+            }
+            // 只更新最后一个媒体通知（通常是当前正在播放的）
+            mediaNotifications.lastOrNull()?.let { updateFromNotification(it) }
+        }, 500) // 延迟 500ms
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
