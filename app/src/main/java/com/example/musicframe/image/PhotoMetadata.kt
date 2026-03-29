@@ -8,7 +8,11 @@ data class PhotoMetadata(
     val deviceModel: String?,
     val isMotionPhoto: Boolean = false,
     val motionVideoOffset: Long? = null,
-    val locationText: String? = null
+    val locationText: String? = null,
+    val focalLength: String? = null,
+    val aperture: String? = null,
+    val exposureTime: String? = null,
+    val iso: String? = null
 ) {
     fun asReadableText(): String {
         val builder = mutableListOf<String>()
@@ -50,6 +54,17 @@ data class PhotoMetadata(
     }
 
     fun hasGpsInfo(): Boolean = latitude != null && longitude != null
+
+    fun hasCameraInfo(): Boolean = focalLength != null || aperture != null || exposureTime != null || iso != null
+
+    fun getCameraInfoText(): String? {
+        val parts = mutableListOf<String>()
+        focalLength?.let { parts += it }
+        aperture?.let { parts += it }
+        exposureTime?.let { parts += it }
+        iso?.let { parts += "ISO$it" }
+        return parts.joinToString("  ").takeIf { it.isNotBlank() }
+    }
 
     private fun Double.format(pattern: String) = String.format(pattern, this)
 }

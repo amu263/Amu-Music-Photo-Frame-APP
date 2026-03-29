@@ -88,6 +88,34 @@ class PhotoMetadataReader(private val context: Context) {
                         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(result)
                     }.getOrNull() ?: raw
                 }
+                
+                // 读取相机参数
+                val focalLength = runCatching {
+                    exif.getAttribute(ExifInterface.TAG_FOCAL_LENGTH)?.toFloatOrNull()?.let { fl ->
+                        val focalMM = fl.toInt()
+                        "$focalMM mm"
+                    }
+                }.getOrNull()
+                
+                val aperture = runCatching {
+                    exif.getAttribute(ExifInterface.TAG_F_NUMBER)?.toFloatOrNull()?.let { fNum ->
+                        "f/${String.format("%.1f", fNum)}"
+                    }
+                }.getOrNull()
+                
+                val exposureTime = runCatching {
+                    exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME)?.toFloatOrNull()?.let { expTime ->
+                        if (expTime >= 1f) {
+                            "${expTime.toInt()}s"
+                        } else {
+                            "1/${(1f / expTime).toInt()}s"
+                        }
+                    }
+                }.getOrNull()
+                
+                val iso = runCatching {
+                    exif.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY)
+                }.getOrNull()
 
                 return PhotoMetadata(
                     createdDateTime = formattedDate,
@@ -97,11 +125,15 @@ class PhotoMetadataReader(private val context: Context) {
                     deviceModel = model,
                     isMotionPhoto = isMotionPhoto,
                     motionVideoOffset = motionOffset,
-                    locationText = locationText
+                    locationText = locationText,
+                    focalLength = focalLength,
+                    aperture = aperture,
+                    exposureTime = exposureTime,
+                    iso = iso
                 )
             }
             
-            return PhotoMetadata(null, null, null, null, null, false, null, null)
+            return PhotoMetadata(null, null, null, null, null, false, null, null, null, null, null, null)
         } finally {
             tempFile.delete()
         }

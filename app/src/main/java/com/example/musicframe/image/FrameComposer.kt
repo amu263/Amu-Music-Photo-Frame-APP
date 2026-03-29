@@ -161,14 +161,16 @@ class FrameComposer {
             }
         }
         
-        // 相机参数
-        val infoPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = subTextColor
-            textSize = separatorHeight * 0.7f
-            textAlign = Paint.Align.CENTER
-        }
+        // 相机参数（只有当图片有真实相机参数时才显示）
         val infoY = bottomStartY + actualBottomHeight * 0.78f
-        canvas.drawText("26mm  f/1.8  1/120s  ISO100", centerX, infoY, infoPaint)
+        config.photoMetadata?.getCameraInfoText()?.let { cameraInfo ->
+            val infoPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = subTextColor
+                textSize = separatorHeight * 0.7f
+                textAlign = Paint.Align.CENTER
+            }
+            canvas.drawText(cameraInfo, centerX, infoY, infoPaint)
+        }
         
         // 时间戳
         val timeText = config.photoMetadata?.createdDateTime?.let { rawDate ->
@@ -423,14 +425,16 @@ class FrameComposer {
             }
         }
         
-        // 相机参数
-        val infoPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = subTextColor
-            textSize = separatorHeight * 0.7f
-            textAlign = Paint.Align.CENTER
-        }
+        // 相机参数（只有当图片有真实相机参数时才显示）
         val infoY = bottomStartY + frameHeight * 0.78f
-        canvas.drawText("26mm  f/1.8  1/120s  ISO100", width / 2f, infoY, infoPaint)
+        photoMetadata?.getCameraInfoText()?.let { cameraInfo ->
+            val infoPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = subTextColor
+                textSize = separatorHeight * 0.7f
+                textAlign = Paint.Align.CENTER
+            }
+            canvas.drawText(cameraInfo, width / 2f, infoY, infoPaint)
+        }
         
         // 时间戳
         val timeText = photoMetadata?.createdDateTime?.let { rawDate ->
