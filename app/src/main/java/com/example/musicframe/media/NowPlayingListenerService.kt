@@ -24,16 +24,28 @@ import java.util.Locale
 
 class NowPlayingListenerService : NotificationListenerService() {
 
+    // 缓存 packageManager 引用，避免在延迟回调中无法访问
+    private var cachedPackageManager: PackageManager? = null
+
     override fun onListenerConnected() {
         super.onListenerConnected()
+        // 缓存 packageManager 引用
+        cachedPackageManager = packageManager
+        Log.d("NowPlayingListener", "packageManager 已缓存：${cachedPackageManager != null}")
+        
         // 延迟检查活跃通知，确保 activeNotifications 已完全加载
         // 这样可以捕获在 app 启动前就已经在播放的音乐
         Handler(Looper.getMainLooper()).postDelayed({
+            Log.d("NowPlayingListener", "延迟回调开始，activeNotifications 数量：${activeNotifications?.size ?: 0}")
             val mediaNotifications = activeNotifications.filter { 
                 it.notification.isMediaStyle() 
             }
+            Log.d("NowPlayingListener", "媒体通知数量：${mediaNotifications.size}")
             // 只更新最后一个媒体通知（通常是当前正在播放的）
-            mediaNotifications.lastOrNull()?.let { updateFromNotification(it) }
+            mediaNotifications.lastOrNull()?.let { 
+                Log.d("NowPlayingListener", "处理媒体通知：${it.packageName}")
+                updateFromNotification(it) 
+            }
         }, 500) // 延迟 500ms
     }
 
@@ -122,9 +134,13 @@ class NowPlayingListenerService : NotificationListenerService() {
         val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         val logBuilder = StringBuilder()
         logBuilder.appendLine("[$timestamp] 尝试加载 app 图标：$packageName")
+        logBuilder.appendLine("[$timestamp] cachedPackageManager: ${cachedPackageManager != null}")
+        
+        // 使用缓存的 packageManager，如果为空则使用当前实例的
+        val pm = cachedPackageManager ?: packageManager
+        logBuilder.appendLine("[$timestamp] 使用 packageManager: ${pm != null}")
         
         return try {
-            val pm = packageManager
             val drawable = pm.getApplicationIcon(packageName)
             logBuilder.appendLine("[$timestamp] ✓ 成功获取应用图标：${drawable.javaClass}")
             val bitmap = drawable.safeToBitmap()
@@ -166,9 +182,13 @@ class NowPlayingListenerService : NotificationListenerService() {
         val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         val logBuilder = StringBuilder()
         logBuilder.appendLine("[$timestamp] 尝试加载 app 名称：$packageName")
+        logBuilder.appendLine("[$timestamp] cachedPackageManager: ${cachedPackageManager != null}")
+        
+        // 使用缓存的 packageManager，如果为空则使用当前实例的
+        val pm = cachedPackageManager ?: packageManager
+        logBuilder.appendLine("[$timestamp] 使用 packageManager: ${pm != null}")
         
         return try {
-            val pm = packageManager
             // 尝试使用 GET_UNINSTALLED_PACKAGES 标志
             val appInfo = pm.getApplicationInfo(packageName, PackageManager.GET_UNINSTALLED_PACKAGES)
             val appName = pm.getApplicationLabel(appInfo)?.toString()
