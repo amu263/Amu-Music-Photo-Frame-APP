@@ -18,6 +18,8 @@ data class MusicFrameUiState(
     val photoMetadata: PhotoMetadata? = null,
     val headphoneInfo: HeadphoneInfo? = null,
     val frameMode: FrameMode = FrameMode.PREMIUM_LEICA,
+    val useLightFrame: Boolean = false,
+    val customFrameColorHex: String = "",
     val showHeadphoneInfo: Boolean = true,
     val isSaving: Boolean = false,
     val isExporting: Boolean = false,

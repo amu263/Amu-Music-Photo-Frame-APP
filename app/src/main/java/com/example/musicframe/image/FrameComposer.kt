@@ -23,7 +23,8 @@ class FrameComposer {
     ): Bitmap {
         val musicLines = buildMusicLines(musicMetadata)
         val headphoneLines = buildHeadphoneLines(headphoneInfo)
-        val frameColor = musicMetadata?.dominantColor ?: 0xFF333333.toInt()
+        val dominantColor = musicMetadata?.dominantColor ?: 0xFF333333.toInt()
+        val frameColor = config.getFrameColor(dominantColor, forMusicFlow = false)
         val textColor = invertedColor(frameColor)
         val headphoneColor = config.headphoneColor(invertedColor(frameColor))
         val headphoneIcon = if (headphoneLines.isNotEmpty()) createHeadphoneIcon(invertedColor(frameColor)) else null
@@ -252,27 +253,29 @@ class FrameComposer {
         val output = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
         
-        // 音乐封面颜色的静态流光外框
+        // 高级竖纹模式外框：封面原色和深色交替的垂直条纹
         val frameColor = renderParams.frameColor.toInt()
-        val flowPaint = Paint().apply {
-            shader = LinearGradient(
-                0f, 0f, 0f, outputHeight.toFloat(),
-                intArrayOf(
-                    (frameColor and 0x00FFFFFF) or 0x50000000.toInt(),
-                    (frameColor and 0x00FFFFFF) or 0x90000000.toInt(),
-                    (frameColor and 0x00FFFFFF) or 0x50000000.toInt()
-                ),
-                floatArrayOf(0f, 0.5f, 1f),
-                Shader.TileMode.CLAMP
-            )
+        val baseColor = (frameColor and 0x00FFFFFF) or 0xFF000000.toInt()
+        val darkColor = adjustColorBrightness(baseColor, 0.15f)
+        
+        val stripeWidth = 20 // 条纹宽度 20px
+        val stripePaint = Paint()
+        
+        // 绘制垂直条纹背景
+        for (x in 0 until outputWidth step stripeWidth * 2) {
+            // 原色条纹
+            stripePaint.color = baseColor
+            canvas.drawRect(x.toFloat(), 0f, (x + stripeWidth).toFloat(), outputHeight.toFloat(), stripePaint)
+            // 深色条纹
+            stripePaint.color = darkColor
+            canvas.drawRect((x + stripeWidth).toFloat(), 0f, (x + stripeWidth * 2).toFloat(), outputHeight.toFloat(), stripePaint)
         }
-        canvas.drawRect(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat(), flowPaint)
         
         // 中央清晰原图
         canvas.drawBitmap(source, frameWidth.toFloat(), frameWidth.toFloat(), null)
         
-        // 底部内容
-        drawLeicaContent(canvas, renderParams, config.photoMetadata, outputWidth, height, bottomFrameHeight, frameColor, frameWidth)
+        // 底部内容（高级竖纹模式使用斜体 + 反色描边）
+        drawLeicaContent(canvas, renderParams, config.photoMetadata, outputWidth, height, bottomFrameHeight, frameColor, frameWidth, isMusicFlowMode = true)
         
         return output
     }
@@ -314,7 +317,8 @@ class FrameComposer {
         height: Int,
         frameHeight: Int,
         frameColor: Int,
-        frameWidth: Int = 0
+        frameWidth: Int = 0,
+        isMusicFlowMode: Boolean = false
     ) {
         val textColor = invertedColor(frameColor)
         val subTextColor = (textColor and 0x00FFFFFF) or 0x99000000.toInt()
@@ -338,11 +342,14 @@ class FrameComposer {
             }
         }
         
-        // 歌名
+        // 歌名（音乐流光模式使用斜体 + 反色描边）
         val musicPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = textColor
             textSize = frameHeight * 0.14f
             textAlign = Paint.Align.CENTER
+            if (isMusicFlowMode) {
+                typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD_ITALIC)
+            }
         }
         val firstRowY = bottomStartY + frameHeight * 0.18f
         if (renderParams.musicLines.isNotEmpty()) {
@@ -351,6 +358,15 @@ class FrameComposer {
             val maxWidth = width * 0.9f
             if (textWidth > maxWidth) {
                 musicPaint.textSize = musicPaint.textSize * (maxWidth / textWidth) * 0.95f
+            }
+            // 音乐流光模式添加反色描边
+            if (isMusicFlowMode) {
+                val strokePaint = Paint(musicPaint).apply {
+                    style = Paint.Style.STROKE
+                    strokeWidth = musicPaint.textSize * 0.08f
+                    color = frameColor
+                }
+                canvas.drawText(musicText, width / 2f, firstRowY, strokePaint)
             }
             canvas.drawText(musicText, width / 2f, firstRowY, musicPaint)
         }
@@ -521,6 +537,14 @@ class FrameComposer {
         } else {
             0xFFF5F5F5.toInt()
         }
+    }
+
+    private fun adjustColorBrightness(color: Int, brightnessFactor: Float): Int {
+        val a = (color shr 24) and 0xFF
+        val r = ((color shr 16) and 0xFF) * brightnessFactor
+        val g = ((color shr 8) and 0xFF) * brightnessFactor
+        val b = (color and 0xFF) * brightnessFactor
+        return (a shl 24) or (r.toInt() shl 16) or (g.toInt() shl 8) or b.toInt()
     }
 }
 

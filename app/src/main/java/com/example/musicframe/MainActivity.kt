@@ -124,6 +124,7 @@ fun musicFrameScreen(
     var showLogDialog by remember { mutableStateOf(false) }
     var logContent by remember { mutableStateOf<String?>(null) }
 
+    var frameColorHex by remember { mutableStateOf("") }
     var headphoneColorHex by remember { mutableStateOf("") }
 
     // 检查 NotificationListenerService 是否已启用
@@ -189,11 +190,16 @@ fun musicFrameScreen(
 
         frameControls(
             state = state,
+            frameColorHex = frameColorHex,
             headphoneColorHex = headphoneColorHex,
+            onFrameColorHexChange = { frameColorHex = it },
+            onApplyFrameHex = { viewModel.setCustomFrameColor(frameColorHex) },
             onHeadphoneColorHexChange = { headphoneColorHex = it },
             onApplyHeadphoneHex = { },
             onAction = { action ->
                 when (action) {
+                    is FrameControlAction.SetLightFrame -> viewModel.setLightFrame(action.enabled)
+                    is FrameControlAction.SetCustomFrameColor -> viewModel.setCustomFrameColor(action.colorHex)
                     is FrameControlAction.ToggleHeadphone -> viewModel.toggleHeadphoneInfo(action.enabled)
                     is FrameControlAction.SetMode -> viewModel.updateFrameMode(action.mode)
                 }

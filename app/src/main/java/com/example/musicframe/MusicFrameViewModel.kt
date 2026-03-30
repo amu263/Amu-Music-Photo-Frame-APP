@@ -118,6 +118,16 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         rebuildFrame()
     }
 
+    fun setLightFrame(enabled: Boolean) {
+        _uiState.update { it.copy(useLightFrame = enabled) }
+        rebuildFrame()
+    }
+
+    fun setCustomFrameColor(colorHex: String) {
+        _uiState.update { it.copy(customFrameColorHex = colorHex) }
+        rebuildFrame()
+    }
+
     fun saveFramedImage() {
         val bitmap = _uiState.value.framedBitmap ?: return
         val format = _uiState.value.exportFormat
@@ -193,6 +203,8 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
             val source = state.originalBitmap ?: return@launch
             val config = FrameConfig(
                 frameMode = state.frameMode,
+                useLightFrame = state.useLightFrame,
+                customFrameColorHex = state.customFrameColorHex,
                 showHeadphoneInfo = state.showHeadphoneInfo,
                 headphoneTextColor = state.userHeadphoneTextColor,
                 typeface = state.customTypeface,
