@@ -11,6 +11,7 @@ import android.os.Build
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.musicframe.domain.model.FrameColorMode
 import com.example.musicframe.domain.model.MusicFrameUiState
 import com.example.musicframe.domain.model.ShareRequest
 import com.example.musicframe.export.ImageExporter
@@ -118,13 +119,23 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         rebuildFrame()
     }
 
-    fun setLightFrame(enabled: Boolean) {
-        _uiState.update { it.copy(useLightFrame = enabled) }
+    fun setFrameColorMode(mode: FrameColorMode) {
+        _uiState.update { it.copy(frameColorMode = mode) }
         rebuildFrame()
     }
 
     fun setCustomFrameColor(colorHex: String) {
         _uiState.update { it.copy(customFrameColorHex = colorHex) }
+        rebuildFrame()
+    }
+
+    fun clearCustomFrameColor() {
+        _uiState.update { it.copy(customFrameColorHex = "") }
+        rebuildFrame()
+    }
+
+    fun setDarkBackground(enabled: Boolean) {
+        _uiState.update { it.copy(useDarkBackground = enabled) }
         rebuildFrame()
     }
 
@@ -197,18 +208,19 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.update { it.copy(message = message ?: "分享失败") }
     }
 
-    private fun rebuildFrame() {
+    internal fun rebuildFrame() {
         viewModelScope.launch(Dispatchers.Default) {
             val state = _uiState.value
             val source = state.originalBitmap ?: return@launch
             val config = FrameConfig(
                 frameMode = state.frameMode,
-                useLightFrame = state.useLightFrame,
+                frameColorMode = state.frameColorMode,
                 customFrameColorHex = state.customFrameColorHex,
                 showHeadphoneInfo = state.showHeadphoneInfo,
                 headphoneTextColor = state.userHeadphoneTextColor,
                 typeface = state.customTypeface,
-                photoMetadata = state.photoMetadata
+                photoMetadata = state.photoMetadata,
+                useDarkBackground = state.useDarkBackground
             )
             val framed = frameComposer.compose(
                 source = source,

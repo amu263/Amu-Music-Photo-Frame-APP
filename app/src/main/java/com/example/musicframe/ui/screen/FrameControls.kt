@@ -35,9 +35,11 @@ import com.example.musicframe.image.MIN_TEXT_SCALE
 fun frameControls(
     state: MusicFrameUiState,
     frameColorHex: String,
+    tempCustomColorHex: String,
     headphoneColorHex: String,
     onFrameColorHexChange: (String) -> Unit,
     onApplyFrameHex: () -> Unit,
+    onClearFrameHex: () -> Unit,
     onHeadphoneColorHexChange: (String) -> Unit,
     onApplyHeadphoneHex: () -> Unit,
     onAction: (FrameControlAction) -> Unit
@@ -50,17 +52,11 @@ fun frameControls(
         frameColorSection(
             state = state,
             frameColorHex = frameColorHex,
+            tempCustomColorHex = tempCustomColorHex,
             onFrameColorHexChange = onFrameColorHexChange,
             onApplyFrameHex = onApplyFrameHex,
+            onClearFrameHex = onClearFrameHex,
             onAction = onAction
-        )
-        headphoneSection(
-            showHeadphoneInfo = state.showHeadphoneInfo,
-            headphoneColorHex = headphoneColorHex,
-            userHeadphoneTextColor = state.userHeadphoneTextColor,
-            onHeadphoneColorHexChange = onHeadphoneColorHexChange,
-            onApplyHeadphoneHex = onApplyHeadphoneHex,
-            onToggleHeadphone = { onAction(FrameControlAction.ToggleHeadphone(it)) }
         )
     }
 }
@@ -91,90 +87,73 @@ private fun frameModeSection(
 private fun frameColorSection(
     state: MusicFrameUiState,
     frameColorHex: String,
+    tempCustomColorHex: String,
     onFrameColorHexChange: (String) -> Unit,
     onApplyFrameHex: () -> Unit,
+    onClearFrameHex: () -> Unit,
     onAction: (FrameControlAction) -> Unit
 ) {
     Text("相框颜色", style = MaterialTheme.typography.titleMedium)
     
-    // 浅色/深色模式切换
+    // 原色/深色/浅色模式切换
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         OutlinedButton(
-            onClick = { onAction(FrameControlAction.SetLightFrame(false)) },
-            enabled = !state.useLightFrame
+            onClick = { onAction(FrameControlAction.SetFrameColorMode(com.example.musicframe.domain.model.FrameColorMode.ORIGINAL)) },
+            enabled = state.frameColorMode != com.example.musicframe.domain.model.FrameColorMode.ORIGINAL
         ) {
-            Text("深色模式")
+            Text("原色")
         }
         OutlinedButton(
-            onClick = { onAction(FrameControlAction.SetLightFrame(true)) },
-            enabled = state.useLightFrame
+            onClick = { onAction(FrameControlAction.SetFrameColorMode(com.example.musicframe.domain.model.FrameColorMode.DARK)) },
+            enabled = state.frameColorMode != com.example.musicframe.domain.model.FrameColorMode.DARK
         ) {
-            Text("浅色模式")
+            Text("深色")
         }
+        OutlinedButton(
+            onClick = { onAction(FrameControlAction.SetFrameColorMode(com.example.musicframe.domain.model.FrameColorMode.LIGHT)) },
+            enabled = state.frameColorMode != com.example.musicframe.domain.model.FrameColorMode.LIGHT
+        ) {
+            Text("浅色")
+        }
+    }
+    
+    // 深色背景模式开关
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("深色背景模式")
+        Switch(
+            checked = state.useDarkBackground,
+            onCheckedChange = { onAction(FrameControlAction.SetDarkBackground(it)) }
+        )
     }
     
     // 自定义颜色
     Text("自定义徕卡颜色（可选）")
-    Row(
+    @OptIn(ExperimentalLayoutApi::class)
+    FlowRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         OutlinedTextField(
-            value = frameColorHex,
+            value = tempCustomColorHex,
             onValueChange = onFrameColorHexChange,
             label = { Text("HEX") },
             placeholder = { Text("例如：FF5733") }
         )
         Button(
             onClick = onApplyFrameHex,
-            enabled = frameColorHex.isNotBlank() && frameColorHex != state.customFrameColorHex
+            enabled = tempCustomColorHex.isNotBlank() && tempCustomColorHex != state.customFrameColorHex
         ) {
             Text("应用")
         }
-        OutlinedButton(
-            onClick = { onAction(FrameControlAction.SetCustomFrameColor("")) }
-        ) {
+        OutlinedButton(onClick = onClearFrameHex) {
             Text("清除")
         }
     }
 }
 
-@Composable
-private fun headphoneSection(
-    showHeadphoneInfo: Boolean,
-    headphoneColorHex: String,
-    userHeadphoneTextColor: Int?,
-    onHeadphoneColorHexChange: (String) -> Unit,
-    onApplyHeadphoneHex: () -> Unit,
-    onToggleHeadphone: (Boolean) -> Unit
-) {
-    Text("耳机信息", style = MaterialTheme.typography.titleMedium)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("显示耳机信息")
-        Switch(
-            checked = showHeadphoneInfo,
-            onCheckedChange = onToggleHeadphone
-        )
-    }
-    
-    if (showHeadphoneInfo) {
-        Text("耳机文字颜色（默认自动反色）")
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = headphoneColorHex,
-                onValueChange = onHeadphoneColorHexChange,
-                label = { Text("HEX") },
-                placeholder = { Text("例如：FFFFFF") }
-            )
-            Button(onClick = onApplyHeadphoneHex) {
-                Text("应用")
-            }
-        }
-    }
-}

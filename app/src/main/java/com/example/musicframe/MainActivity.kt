@@ -125,7 +125,21 @@ fun musicFrameScreen(
     var logContent by remember { mutableStateOf<String?>(null) }
 
     var frameColorHex by remember { mutableStateOf("") }
+    var tempCustomColorHex by remember { mutableStateOf("") }
     var headphoneColorHex by remember { mutableStateOf("") }
+
+    // 同步临时颜色到状态（仅当状态变化且 temp 为空时同步，不影响用户输入和清除操作）
+    LaunchedEffect(state.customFrameColorHex) {
+        // 仅在 tempCustomColorHex 为空时才同步，避免覆盖用户输入或清除操作
+        if (tempCustomColorHex.isEmpty() && state.customFrameColorHex.isNotEmpty()) {
+            tempCustomColorHex = state.customFrameColorHex
+            frameColorHex = state.customFrameColorHex
+        } else if (state.customFrameColorHex.isEmpty() && tempCustomColorHex.isNotEmpty()) {
+            // 状态已清除但 temp 还有值，同步清除
+            tempCustomColorHex = ""
+            frameColorHex = ""
+        }
+    }
 
     // 检查 NotificationListenerService 是否已启用
     val notificationListenerEnabled = isNotificationListenerEnabled(context)
@@ -191,15 +205,27 @@ fun musicFrameScreen(
         frameControls(
             state = state,
             frameColorHex = frameColorHex,
+            tempCustomColorHex = tempCustomColorHex,
             headphoneColorHex = headphoneColorHex,
-            onFrameColorHexChange = { frameColorHex = it },
-            onApplyFrameHex = { viewModel.setCustomFrameColor(frameColorHex) },
+            onFrameColorHexChange = { tempCustomColorHex = it },
+            onApplyFrameHex = { 
+                viewModel.setCustomFrameColor(tempCustomColorHex)
+                frameColorHex = tempCustomColorHex
+                viewModel.rebuildFrame()
+            },
+            onClearFrameHex = { 
+                tempCustomColorHex = ""
+                frameColorHex = ""
+                viewModel.setCustomFrameColor("")
+                viewModel.rebuildFrame()
+            },
             onHeadphoneColorHexChange = { headphoneColorHex = it },
             onApplyHeadphoneHex = { },
             onAction = { action ->
                 when (action) {
-                    is FrameControlAction.SetLightFrame -> viewModel.setLightFrame(action.enabled)
+                    is FrameControlAction.SetFrameColorMode -> viewModel.setFrameColorMode(action.mode)
                     is FrameControlAction.SetCustomFrameColor -> viewModel.setCustomFrameColor(action.colorHex)
+                    is FrameControlAction.SetDarkBackground -> viewModel.setDarkBackground(action.enabled)
                     is FrameControlAction.ToggleHeadphone -> viewModel.toggleHeadphoneInfo(action.enabled)
                     is FrameControlAction.SetMode -> viewModel.updateFrameMode(action.mode)
                 }

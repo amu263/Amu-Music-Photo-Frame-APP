@@ -18,9 +18,10 @@ data class MusicFrameUiState(
     val photoMetadata: PhotoMetadata? = null,
     val headphoneInfo: HeadphoneInfo? = null,
     val frameMode: FrameMode = FrameMode.PREMIUM_LEICA,
-    val useLightFrame: Boolean = false,
+    val frameColorMode: FrameColorMode = FrameColorMode.DARK,
     val customFrameColorHex: String = "",
     val showHeadphoneInfo: Boolean = true,
+    val useDarkBackground: Boolean = false,
     val isSaving: Boolean = false,
     val isExporting: Boolean = false,
     val exportFormat: ImageExporter.Format = ImageExporter.Format.PNG,
@@ -31,5 +32,11 @@ data class MusicFrameUiState(
     val customFontPath: String? = null,
     val userHeadphoneTextColor: Int? = null
 )
+
+enum class FrameColorMode {
+    ORIGINAL,  // 原色
+    DARK,      // 深色
+    LIGHT      // 浅色
+}
 
 data class ShareRequest(val uri: Uri, val mimeType: String)
