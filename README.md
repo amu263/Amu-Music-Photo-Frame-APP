@@ -127,6 +127,100 @@
 | **直接分享** | 触发系统分享意图 |
 | **实况相框** | Motion Photo 视频片段导出（JPEG 容器附带原视频流） |
 
+### 🎬 动态图片功能 (v1.0.31+)
+
+应用支持将静态相框导出为动态图片格式，让你的音乐相框动起来！
+
+#### 支持的动态格式
+
+| 格式 | 文件扩展名 | 特点 | 兼容性 |
+|------|-----------|------|--------|
+| **GIF** | `.gif` | 广泛支持，兼容性最好 | 所有 Android 版本 |
+| **Animated WebP** | `.webp` | 更小体积，更好质量 | Android 8.0+ (API 26+) |
+
+#### 导出质量等级
+
+| 等级 | 压缩质量 | 适用场景 |
+|------|----------|----------|
+| **低** | 60% | 快速分享，节省流量 |
+| **中** | 80% | 平衡质量和大小 |
+| **高** | 95% | 最佳画质，专业输出 |
+
+#### 性能优化特性
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                 Memory Management                        │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  FrameCache (LRU 缓存)                                  │
+│  ├── 默认大小: 32MB                                      │
+│  ├── 自动内存计算                                        │
+│  └── LRU 淘汰策略                                        │
+│                                                          │
+│  BitmapPool (对象池)                                    │
+│  ├── 默认大小: 32MB                                      │
+│  ├── 尺寸分组复用                                        │
+│  └── 最多 4 个对象/尺寸                                  │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 使用示例
+
+**导出动态图片：**
+```kotlin
+val exportManager = ExportManager(context)
+
+val result = exportManager.exportAnimatedImage(
+    sourceUri = uri,
+    format = OutputFormat.GIF,           // 或 OutputFormat.WEBP
+    quality = QualityLevel.HIGH,          // 低/中/高
+    frameConfig = frameConfig,
+    musicMetadata = musicMetadata,
+    onProgress = { current, total ->
+        val progress = current * 100 / total
+        // 更新 UI 进度
+    }
+)
+
+result.onSuccess { file ->
+    // 导出成功，file 为导出的文件
+}
+
+result.onFailure { error ->
+    // 处理错误
+}
+```
+
+**性能监控：**
+```kotlin
+// 获取缓存统计
+val stats = exportManager.getCacheStats()
+println("Hit rate: ${stats.frameCacheHitRate * 100}%")
+println("Evictions: ${stats.frameCacheEvictions}")
+
+// 清理缓存
+exportManager.clearExportCache()
+```
+
+#### 最佳实践
+
+1. **内存管理**
+   - 避免同时导出多个大文件
+   - 及时清理导出缓存
+   - 使用对象池减少内存分配
+
+2. **质量选择**
+   - 快速分享选"低"质量
+   - 社交媒体选"中"质量
+   - 存档打印选"高"质量
+
+3. **尺寸限制**
+   - 最大输出: 1080px
+   - 最大帧数: 100 帧
+   - 超过限制自动调整
+
 ---
 
 ## 🔐 权限说明
@@ -237,17 +331,29 @@ Amu-Music-Photo-Frame-APP/
 │   │   │   ├── MainActivity.kt              # 主界面
 │   │   │   ├── MusicFrameViewModel.kt       # 视图模型
 │   │   │   ├── MusicFrameViewModelFactory.kt
+│   │   │   ├── cache/
+│   │   │   │   └── FrameCache.kt           # LRU 帧缓存
+│   │   │   ├── util/
+│   │   │   │   └── BitmapPool.kt           # Bitmap 对象池
 │   │   │   ├── image/
 │   │   │   │   ├── FrameComposer.kt         # 相框合成器
 │   │   │   │   ├── FrameConfig.kt           # 相框配置
 │   │   │   │   ├── FrameMode.kt             # 相框模式枚举
+│   │   │   │   ├── AnimatedFrame.kt         # 动态帧模型
+│   │   │   │   ├── AnimatedFrameDecoder.kt  # 动态图片解码
 │   │   │   │   └── PhotoMetadataReader.kt   # 照片元数据
+│   │   │   ├── export/
+│   │   │   │   ├── ExportManager.kt         # 导出管理器
+│   │   │   │   ├── ExportWorker.kt         # 导出工作器
+│   │   │   │   ├── ImageExporter.kt        # 图片导出
+│   │   │   │   ├── AnimatedImageEncoder.kt # 编码器接口
+│   │   │   │   ├── GifEncoderImpl.kt       # GIF 编码器
+│   │   │   │   ├── AnimatedWebPEncoder.kt   # WebP 编码器
+│   │   │   │   └── EncoderFactory.kt        # 编码器工厂
 │   │   │   ├── media/
 │   │   │   │   ├── NowPlayingListenerService.kt  # 音乐监听
 │   │   │   │   ├── HeadphoneInfoRepository.kt    # 耳机信息
 │   │   │   │   └── MusicMetadataRepository.kt    # 音乐元数据
-│   │   │   ├── export/
-│   │   │   │   └── ImageExporter.kt         # 图片导出
 │   │   │   ├── domain/model/                # 领域模型
 │   │   │   │   ├── BorderParams.kt
 │   │   │   │   ├── FrameControlAction.kt
@@ -263,6 +369,7 @@ Amu-Music-Photo-Frame-APP/
 │   │   │       │   └── ColorSelectionRow.kt
 │   │   │       ├── screen/                  # 界面屏幕
 │   │   │       │   ├── FrameControls.kt
+│   │   │       │   ├── AnimatedExportPanel.kt
 │   │   │       │   └── ExportFormatSelector.kt
 │   │   │       └── theme/                   # 主题
 │   │   │           ├── Color.kt
@@ -270,11 +377,19 @@ Amu-Music-Photo-Frame-APP/
 │   │   │           └── Type.kt
 │   │   ├── res/                             # 资源文件
 │   │   └── AndroidManifest.xml              # 应用清单
+│   ├── src/test/                           # 单元测试
+│   │   └── kotlin/com/example/musicframe/
+│   │       ├── FrameCacheTest.kt             # 帧缓存测试
+│   │       ├── BitmapPoolTest.kt             # 对象池测试
+│   │       ├── ExportWorkerTest.kt           # 导出工作器测试
+│   │       ├── ExportManagerIntegrationTest.kt # 集成测试
+│   │       └── ExportBenchmark.kt            # 性能基准测试
 │   └── build.gradle.kts                     # 模块构建配置
 ├── build.gradle.kts                         # 项目构建配置
 ├── settings.gradle.kts                      # 项目设置
 ├── gradle.properties                        # Gradle 属性
 ├── detekt-config.yml                        # 代码检查配置
+├── ARCHITECTURE.md                          # 架构文档
 └── README.md                                # 项目文档
 ```
 
@@ -380,6 +495,10 @@ dependencies {
 - [x] 高级徕卡模式对比色描边替代胶囊背景（v1.0.29）
 - [x] 高级徕卡模式文字粗体效果（v1.0.30）
 - [x] GitHub PR 工作流集成
+- [x] 动态图片导出功能（GIF/WebP）（v1.0.31）
+- [x] 帧缓存与 Bitmap 对象池优化（v1.0.31）
+- [x] 完整的单元测试与集成测试（v1.0.31）
+- [x] 架构文档（ARCHITECTURE.md）（v1.0.31）
 
 ### 待优化 🚧
 

@@ -5,7 +5,6 @@ import android.graphics.Typeface
 import android.net.Uri
 import com.example.musicframe.export.ImageExporter
 import com.example.musicframe.image.FrameMode
-import com.example.musicframe.image.MIN_TEXT_SCALE
 import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.model.HeadphoneInfo
 import com.example.musicframe.model.MusicMetadata
@@ -34,9 +33,9 @@ data class MusicFrameUiState(
 )
 
 enum class FrameColorMode {
-    ORIGINAL,  // 原色
-    DARK,      // 深色
-    LIGHT      // 浅色
+    ORIGINAL, // 原色
+    DARK, // 深色
+    LIGHT // 浅色
 }
 
 data class ShareRequest(val uri: Uri, val mimeType: String)

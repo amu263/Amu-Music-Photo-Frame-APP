@@ -35,7 +35,7 @@ class NowPlayingListenerService : NotificationListenerService() {
         writeDebugLog("[$timestamp] onListenerConnected 被调用\n")
         writeDebugLog("[$timestamp] packageManager 已缓存：${cachedPackageManager != null}\n")
         Log.d("NowPlayingListener", "packageManager 已缓存：${cachedPackageManager != null}")
-        
+
         // 延迟检查活跃通知，确保 activeNotifications 已完全加载
         // 这样可以捕获在 app 启动前就已经在播放的音乐
         Handler(Looper.getMainLooper()).postDelayed({
@@ -43,16 +43,16 @@ class NowPlayingListenerService : NotificationListenerService() {
             writeDebugLog("[$ts] 延迟回调开始，activeNotifications 数量：${activeNotifications?.size ?: 0}\n")
             writeDebugLog("[$ts] cachedPackageManager 状态：${cachedPackageManager != null}\n")
             Log.d("NowPlayingListener", "延迟回调开始，activeNotifications 数量：${activeNotifications?.size ?: 0}")
-            val mediaNotifications = activeNotifications.filter { 
-                it.notification.isMediaStyle() 
+            val mediaNotifications = activeNotifications.filter {
+                it.notification.isMediaStyle()
             }
             writeDebugLog("[$ts] 媒体通知数量：${mediaNotifications.size}\n")
             Log.d("NowPlayingListener", "媒体通知数量：${mediaNotifications.size}")
             // 只更新最后一个媒体通知（通常是当前正在播放的）
-            mediaNotifications.lastOrNull()?.let { 
+            mediaNotifications.lastOrNull()?.let {
                 writeDebugLog("[$ts] 处理媒体通知：${it.packageName}\n")
                 Log.d("NowPlayingListener", "处理媒体通知：${it.packageName}")
-                updateFromNotification(it) 
+                updateFromNotification(it)
             }
         }, 500) // 延迟 500ms
     }
@@ -159,7 +159,7 @@ class NowPlayingListenerService : NotificationListenerService() {
         val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         val logBuilder = StringBuilder()
         logBuilder.appendLine("[$timestamp] 尝试加载 app 图标：$packageName")
-        
+
         // 方案 1：优先从通知的 largeIcon 获取（通知自带的图标）
         logBuilder.appendLine("[$timestamp] 尝试方案 1：从通知 largeIcon 获取...")
         try {
@@ -179,14 +179,14 @@ class NowPlayingListenerService : NotificationListenerService() {
         } catch (e: Exception) {
             logBuilder.appendLine("[$timestamp] ✗ largeIcon 加载失败：${e.message}")
         }
-        
+
         // 方案 2：使用 packageManager 获取应用图标
         logBuilder.appendLine("[$timestamp] 尝试方案 2：从 packageManager 获取...")
         logBuilder.appendLine("[$timestamp] cachedPackageManager: ${cachedPackageManager != null}")
-        
+
         val pm = cachedPackageManager ?: applicationContext.packageManager
         logBuilder.appendLine("[$timestamp] 使用 packageManager: ${pm != null}")
-        
+
         return try {
             logBuilder.appendLine("[$timestamp] 调用 getApplicationIcon($packageName)")
             val drawable = pm.getApplicationIcon(packageName)
@@ -198,7 +198,7 @@ class NowPlayingListenerService : NotificationListenerService() {
         } catch (e: Exception) {
             logBuilder.appendLine("[$timestamp] ✗ 获取应用图标失败：${e.message}")
             logBuilder.appendLine("[$timestamp] 异常类型：${e.javaClass.simpleName}")
-            
+
             // 方案 3：从通知小图标加载
             logBuilder.appendLine("[$timestamp] 尝试方案 3：从通知小图标加载...")
             try {
@@ -226,7 +226,7 @@ class NowPlayingListenerService : NotificationListenerService() {
         val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         val logBuilder = StringBuilder()
         logBuilder.appendLine("[$timestamp] 尝试加载 app 名称：$packageName")
-        
+
         // 方案 1：从映射表获取
         val mappedName = musicAppNames[packageName]
         if (mappedName != null) {
@@ -235,14 +235,14 @@ class NowPlayingListenerService : NotificationListenerService() {
             return mappedName
         }
         logBuilder.appendLine("[$timestamp] ✗ 映射表中未找到")
-        
+
         // 方案 2：使用 packageManager 获取应用名称
         logBuilder.appendLine("[$timestamp] 尝试方案 2：从 packageManager 获取...")
         logBuilder.appendLine("[$timestamp] cachedPackageManager: ${cachedPackageManager != null}")
-        
+
         val pm = cachedPackageManager ?: packageManager
         logBuilder.appendLine("[$timestamp] 使用 packageManager: ${pm != null}")
-        
+
         return try {
             val appInfo = pm.getApplicationInfo(packageName, PackageManager.GET_UNINSTALLED_PACKAGES)
             val appName = pm.getApplicationLabel(appInfo)?.toString()
@@ -252,7 +252,7 @@ class NowPlayingListenerService : NotificationListenerService() {
         } catch (e: Exception) {
             logBuilder.appendLine("[$timestamp] ✗ 获取应用名称失败：${e.message}")
             logBuilder.appendLine("[$timestamp] 异常类型：${e.javaClass.simpleName}")
-            
+
             // 方案 3：从通知的 tickerText 获取（有些播放器会在这里显示应用名）
             logBuilder.appendLine("[$timestamp] 尝试方案 3：从通知 tickerText 获取...")
             val tickerText = statusBarNotification.notification.tickerText?.toString()
@@ -262,7 +262,7 @@ class NowPlayingListenerService : NotificationListenerService() {
                 return tickerText
             }
             logBuilder.appendLine("[$timestamp] ✗ tickerText 为空")
-            
+
             writeDebugLog(logBuilder.toString())
             null
         }

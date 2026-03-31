@@ -16,7 +16,7 @@ data class PhotoMetadata(
     // 动态照片相关字段
     val isAnimated: Boolean = false,
     val frameCount: Int = 1,
-    val duration: Long = 0L,  // 总时长（毫秒）
+    val duration: Long = 0L, // 总时长（毫秒）
     val animationType: AnimationType? = null
 ) {
     enum class AnimationType {
@@ -27,7 +27,7 @@ data class PhotoMetadata(
     fun asReadableText(): String {
         val builder = mutableListOf<String>()
         createdDateTime?.let { builder += it }
-        
+
         if (locationText != null) {
             builder += locationText
         } else {
@@ -36,9 +36,9 @@ data class PhotoMetadata(
                 builder += geo
             }
         }
-        
+
         deviceModel?.let { builder += it }
-        
+
         // 动态照片信息
         if (isMotionPhoto) {
             builder += "实况照片"
@@ -48,9 +48,9 @@ data class PhotoMetadata(
                 AnimationType.WEBP -> "WebP"
                 else -> "动态图片"
             }
-            builder += "${typeStr} · ${frameCount}帧 · ${duration / 1000.0}s"
+            builder += "$typeStr · ${frameCount}帧 · ${duration / 1000.0}s"
         }
-        
+
         return builder.joinToString(" · ")
     }
 
@@ -58,18 +58,22 @@ data class PhotoMetadata(
         if (latitude == null || longitude == null) {
             return null
         }
-        
+
         val latDir = if (latitude >= 0) "N" else "S"
         val lonDir = if (longitude >= 0) "E" else "W"
-        
-        val coordStr = String.format("%.4f°%s, %.4f°%s", 
-            Math.abs(latitude), latDir,
-            Math.abs(longitude), lonDir)
-        
-        val altStr = altitude?.let { 
+
+        val coordStr = String.format(
+            "%.4f°%s, %.4f°%s",
+            Math.abs(latitude),
+            latDir,
+            Math.abs(longitude),
+            lonDir
+        )
+
+        val altStr = altitude?.let {
             String.format(" 海拔%.0fm", it)
         } ?: ""
-        
+
         return coordStr + altStr
     }
 

@@ -2,18 +2,16 @@ package com.example.musicframe
 
 import android.Manifest
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.service.notification.NotificationListenerService
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -56,7 +54,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -65,10 +62,10 @@ import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.image.PhotoMetadataReader
 import com.example.musicframe.ui.screen.exportFormatSelector
 import com.example.musicframe.ui.screen.frameControls
+import com.example.musicframe.ui.screen.animatedExportPanel
 import com.example.musicframe.ui.theme.musicFrameTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import java.io.File
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalPermissionsApi::class)
@@ -208,12 +205,12 @@ fun musicFrameScreen(
             tempCustomColorHex = tempCustomColorHex,
             headphoneColorHex = headphoneColorHex,
             onFrameColorHexChange = { tempCustomColorHex = it },
-            onApplyFrameHex = { 
+            onApplyFrameHex = {
                 viewModel.setCustomFrameColor(tempCustomColorHex)
                 frameColorHex = tempCustomColorHex
                 viewModel.rebuildFrame()
             },
-            onClearFrameHex = { 
+            onClearFrameHex = {
                 tempCustomColorHex = ""
                 frameColorHex = ""
                 viewModel.setCustomFrameColor("")
@@ -243,6 +240,19 @@ fun musicFrameScreen(
             isExporting = state.isExporting,
             onSave = { viewModel.saveFramedImage() },
             onExport = { viewModel.shareFramedImage() }
+        )
+
+        // 动态图片导出面板
+        animatedExportPanel(
+            exportFormat = viewModel.selectedExportFormat.value,
+            qualityLevel = viewModel.selectedQuality.value,
+            exportState = viewModel.exportState.value,
+            previewUri = viewModel.exportedPreviewUri.value,
+            onFormatChanged = viewModel::onExportFormatChanged,
+            onQualityChanged = viewModel::onQualityChanged,
+            onExport = { viewModel.exportAnimatedPhoto() },
+            onShare = { viewModel.shareExportedPhoto() },
+            onReset = { viewModel.resetExportState() }
         )
 
         exportLogButton()

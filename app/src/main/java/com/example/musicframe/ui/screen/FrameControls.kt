@@ -11,13 +11,10 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -27,8 +24,6 @@ import com.example.musicframe.domain.model.FrameControlAction
 import com.example.musicframe.domain.model.MusicFrameUiState
 import com.example.musicframe.domain.model.toDisplayName
 import com.example.musicframe.image.FrameMode
-import com.example.musicframe.image.MAX_TEXT_SCALE
-import com.example.musicframe.image.MIN_TEXT_SCALE
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -94,32 +89,40 @@ private fun frameColorSection(
     onAction: (FrameControlAction) -> Unit
 ) {
     Text("相框颜色", style = MaterialTheme.typography.titleMedium)
-    
+
     // 原色/深色/浅色模式切换
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         OutlinedButton(
-            onClick = { onAction(FrameControlAction.SetFrameColorMode(com.example.musicframe.domain.model.FrameColorMode.ORIGINAL)) },
+            onClick = {
+                onAction(
+                    FrameControlAction.SetFrameColorMode(com.example.musicframe.domain.model.FrameColorMode.ORIGINAL)
+                )
+            },
             enabled = state.frameColorMode != com.example.musicframe.domain.model.FrameColorMode.ORIGINAL
         ) {
             Text("原色")
         }
         OutlinedButton(
-            onClick = { onAction(FrameControlAction.SetFrameColorMode(com.example.musicframe.domain.model.FrameColorMode.DARK)) },
+            onClick = { onAction(
+                FrameControlAction.SetFrameColorMode(com.example.musicframe.domain.model.FrameColorMode.DARK)
+            ) },
             enabled = state.frameColorMode != com.example.musicframe.domain.model.FrameColorMode.DARK
         ) {
             Text("深色")
         }
         OutlinedButton(
-            onClick = { onAction(FrameControlAction.SetFrameColorMode(com.example.musicframe.domain.model.FrameColorMode.LIGHT)) },
+            onClick = { onAction(
+                FrameControlAction.SetFrameColorMode(com.example.musicframe.domain.model.FrameColorMode.LIGHT)
+            ) },
             enabled = state.frameColorMode != com.example.musicframe.domain.model.FrameColorMode.LIGHT
         ) {
             Text("浅色")
         }
     }
-    
+
     // 深色背景模式开关
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -131,7 +134,7 @@ private fun frameColorSection(
             onCheckedChange = { onAction(FrameControlAction.SetDarkBackground(it)) }
         )
     }
-    
+
     // 自定义颜色
     Text("自定义徕卡颜色（可选）")
     @OptIn(ExperimentalLayoutApi::class)
@@ -156,4 +159,3 @@ private fun frameColorSection(
         }
     }
 }
-

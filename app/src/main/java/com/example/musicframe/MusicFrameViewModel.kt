@@ -14,6 +14,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.musicframe.domain.model.FrameColorMode
 import com.example.musicframe.domain.model.MusicFrameUiState
 import com.example.musicframe.domain.model.ShareRequest
+import com.example.musicframe.export.ExportManager
+import com.example.musicframe.export.ExportWorker
 import com.example.musicframe.export.ImageExporter
 import com.example.musicframe.export.ImageExporter.MotionPhotoInfo
 import com.example.musicframe.image.FrameComposer
@@ -39,7 +41,11 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
     private val frameComposer = FrameComposer()
     private val photoMetadataReader = PhotoMetadataReader(application)
     private val exporter = ImageExporter(application)
+    private val exportManager = ExportManager(application)
+    private val exportWorker = ExportWorker(application)
     private val prefs = application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private val isExportCancelled = java.util.concurrent.atomic.AtomicBoolean(false)
 
     private val _uiState = MutableStateFlow(MusicFrameUiState())
     val uiState: StateFlow<MusicFrameUiState> = _uiState.asStateFlow()
@@ -188,7 +194,11 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
                 exporter.exportMotionPhoto(bitmap, MotionPhotoInfo(sourceUri, motionOffset))
             }.onSuccess { uri ->
                 _uiState.update { state ->
-                    state.copy(isExporting = false, message = "已导出实况相框", pendingShareRequest = ShareRequest(uri, ImageExporter.Format.JPEG.mimeType))
+                    state.copy(
+                        isExporting = false,
+                        message = "已导出实况相框",
+                        pendingShareRequest = ShareRequest(uri, ImageExporter.Format.JPEG.mimeType)
+                    )
                 }
             }.onFailure { error ->
                 _uiState.update { state -> state.copy(isExporting = false, message = error.localizedMessage) }
@@ -206,6 +216,137 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
 
     fun onShareFailed(message: String?) {
         _uiState.update { it.copy(message = message ?: "分享失败") }
+    }
+
+    // ========== 动态图片导出功能 ==========
+
+    private val _exportState = MutableStateFlow<ExportState>(ExportState.Idle)
+    val exportState: StateFlow<ExportState> = _exportState.asStateFlow()
+
+    private val _selectedExportFormat = MutableStateFlow(ExportManager.OutputFormat.GIF)
+    val selectedExportFormat: StateFlow<ExportManager.OutputFormat> = _selectedExportFormat.asStateFlow()
+
+    private val _selectedQuality = MutableStateFlow(ExportManager.QualityLevel.MEDIUM)
+    val selectedQuality: StateFlow<ExportManager.QualityLevel> = _selectedQuality.asStateFlow()
+
+    private val _exportedPreviewUri = MutableStateFlow<Uri?>(null)
+    val exportedPreviewUri: StateFlow<Uri?> = _exportedPreviewUri.asStateFlow()
+
+    fun onExportFormatChanged(format: ExportManager.OutputFormat) {
+        _selectedExportFormat.value = format
+    }
+
+    fun onQualityChanged(quality: ExportManager.QualityLevel) {
+        _selectedQuality.value = quality
+    }
+
+    fun exportAnimatedPhoto() {
+        val state = _uiState.value
+        val sourceUri = state.selectedImageUri ?: return
+
+        isExportCancelled.set(false)
+        viewModelScope.launch {
+            _exportState.value = ExportState.Progress(0, 100, "准备导出...")
+            _exportedPreviewUri.value = null
+
+            val frameConfig = FrameConfig(
+                frameMode = state.frameMode,
+                frameColorMode = state.frameColorMode,
+                customFrameColorHex = state.customFrameColorHex,
+                showHeadphoneInfo = state.showHeadphoneInfo,
+                headphoneTextColor = state.userHeadphoneTextColor,
+                typeface = state.customTypeface,
+                photoMetadata = state.photoMetadata,
+                useDarkBackground = state.useDarkBackground
+            )
+
+            val result = exportManager.exportAnimatedImage(
+                sourceUri = sourceUri,
+                format = _selectedExportFormat.value,
+                quality = _selectedQuality.value,
+                frameConfig = frameConfig,
+                musicMetadata = state.musicMetadata,
+                photoMetadata = state.photoMetadata,
+                headphoneInfo = state.headphoneInfo,
+                onProgress = { current, total ->
+                    val progress = (current * 100 / total)
+                    _exportState.value = ExportState.Progress(current, total, "导出中 $progress%")
+                },
+                isCancelled = { isExportCancelled.get() }
+            )
+
+            if (isExportCancelled.get()) {
+                _exportState.value = ExportState.Cancelled
+                return@launch
+            }
+
+            result.onSuccess { file ->
+                _exportState.value = ExportState.Success(file)
+                _exportedPreviewUri.value = Uri.fromFile(file)
+            }.onFailure { error ->
+                if (error is InterruptedException) {
+                    _exportState.value = ExportState.Cancelled
+                } else {
+                    _exportState.value = ExportState.Error(error.localizedMessage ?: "导出失败")
+                }
+            }
+        }
+    }
+
+    fun cancelExport() {
+        isExportCancelled.set(true)
+        exportWorker.cancel()
+        _exportState.value = ExportState.Cancelled
+    }
+
+    fun shareExportedPhoto() {
+        val file = (_exportState.value as? ExportState.Success)?.outputFile ?: return
+        val format = _selectedExportFormat.value
+
+        _uiState.update { state ->
+            state.copy(
+                isExporting = false,
+                message = "已导出动态图片",
+                pendingShareRequest = ShareRequest(Uri.fromFile(file), format.mimeType)
+            )
+        }
+    }
+
+    fun resetExportState() {
+        _exportState.value = ExportState.Idle
+        _exportedPreviewUri.value = null
+    }
+
+    fun getCacheStats(): ExportManager.CacheStats {
+        return exportManager.getCacheStats()
+    }
+
+    fun getMemoryUsage(): MemoryUsage {
+        val runtime = Runtime.getRuntime()
+        val usedMemory = runtime.totalMemory() - runtime.freeMemory()
+        val maxMemory = runtime.maxMemory()
+        return MemoryUsage(
+            usedMB = usedMemory / (1024 * 1024),
+            totalMB = maxMemory / (1024 * 1024),
+            usagePercent = (usedMemory * 100 / maxMemory).toInt()
+        )
+    }
+
+    data class MemoryUsage(
+        val usedMB: Long,
+        val totalMB: Long,
+        val usagePercent: Int
+    )
+
+    /**
+     * 导出状态
+     */
+    sealed class ExportState {
+        data object Idle : ExportState()
+        data class Progress(val current: Int, val total: Int, val phase: String) : ExportState()
+        data class Success(val outputFile: File) : ExportState()
+        data class Error(val message: String) : ExportState()
+        data object Cancelled : ExportState()
     }
 
     internal fun rebuildFrame() {

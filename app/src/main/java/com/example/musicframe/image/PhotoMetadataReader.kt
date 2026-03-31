@@ -1,9 +1,7 @@
 package com.example.musicframe.image
 
 import android.content.Context
-import android.graphics.ImageDecoder
 import android.net.Uri
-import android.os.Build
 import android.os.Environment
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
@@ -17,7 +15,7 @@ class PhotoMetadataReader(private val context: Context) {
     fun read(uri: Uri): PhotoMetadata {
         // 首先检测是否为动态图片
         val animatedInfo = detectAnimatedImage(uri)
-        
+
         return context.contentResolver.openInputStream(uri)?.use { stream ->
             parse(stream, animatedInfo)
         } ?: PhotoMetadata(
@@ -39,7 +37,7 @@ class PhotoMetadataReader(private val context: Context) {
             animationType = animatedInfo?.type
         )
     }
-    
+
     /**
      * 检测图片是否为动态图片（GIF/Animated WebP）
      */
@@ -48,26 +46,29 @@ class PhotoMetadataReader(private val context: Context) {
             val mimeType = context.contentResolver.getType(uri)
             val isGif = mimeType == "image/gif"
             val isWebp = mimeType == "image/webp"
-            
+
             if (!isGif && !isWebp) {
                 return null
             }
-            
+
             // 简单检测：GIF 或 WebP 都视为可能动态图片
             // 详细的帧数和时长信息在导出时再解析
             AnimatedImageInfo(
                 isAnimated = true,
-                frameCount = 1,  // 暂时设为 1，后续在 FrameComposer 中详细解析
+                frameCount = 1, // 暂时设为 1，后续在 FrameComposer 中详细解析
                 duration = 0L,
-                type = if (isGif) PhotoMetadata.AnimationType.GIF 
-                       else PhotoMetadata.AnimationType.WEBP
+                type = if (isGif) {
+                    PhotoMetadata.AnimationType.GIF
+                } else {
+                    PhotoMetadata.AnimationType.WEBP
+                }
             )
         } catch (e: Exception) {
             // 检测失败，返回 null
             null
         }
     }
-    
+
     private data class AnimatedImageInfo(
         val isAnimated: Boolean,
         val frameCount: Int,
@@ -81,9 +82,9 @@ class PhotoMetadataReader(private val context: Context) {
             tempFile.outputStream().use { output ->
                 stream.copyTo(output, bufferSize = 1024 * 1024)
             }
-            
+
             val exif = runCatching { ExifInterface(tempFile.absolutePath) }.getOrNull()
-            
+
             if (exif != null) {
                 var latitude: Double? = null
                 var longitude: Double? = null
@@ -91,20 +92,20 @@ class PhotoMetadataReader(private val context: Context) {
                 var model: String? = null
                 var isMotionPhoto = false
                 var motionOffset: Long? = null
-                
+
                 // 读取 GPS - 只使用最可靠的 getLatLong() 方法
                 val latLong = runCatching { exif.latLong }.getOrNull()
                 if (latLong != null) {
                     latitude = latLong[0].toDouble()
                     longitude = latLong[1].toDouble()
                 }
-                
+
                 // 读取日期
                 date = runCatching {
                     exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
                         ?: exif.getAttribute(ExifInterface.TAG_DATETIME)
                 }.getOrNull()
-                
+
                 // 读取设备信息
                 model = runCatching {
                     listOfNotNull(
@@ -112,7 +113,7 @@ class PhotoMetadataReader(private val context: Context) {
                         exif.getAttribute(ExifInterface.TAG_MODEL)
                     ).joinToString(" ").ifBlank { null }
                 }.getOrNull()
-                
+
                 // Motion Photo 检测
                 try {
                     isMotionPhoto = MOTION_PHOTO_FLAG_TAGS.any { tag ->
@@ -125,17 +126,20 @@ class PhotoMetadataReader(private val context: Context) {
                 } catch (e: Exception) {
                     // 忽略 Motion Photo 检测失败
                 }
-                
+
                 // 读取海拔高度
                 val altitude = runCatching {
                     exif.getAltitude(Double.NaN).takeIf { !it.isNaN() }
                 }.getOrNull()
-                
+
                 // 反向地理编码
-                val locationText = if (latitude != null && longitude != null && 
-                    !(latitude == 0.0 && longitude == 0.0)) {
+                val locationText = if (latitude != null && longitude != null &&
+                    !(latitude == 0.0 && longitude == 0.0)
+                ) {
                     runCatching { reverseGeocode(latitude!!, longitude!!) }.getOrNull()
-                } else null
+                } else {
+                    null
+                }
 
                 // 格式化日期
                 val formattedDate = date?.let { raw ->
@@ -145,7 +149,7 @@ class PhotoMetadataReader(private val context: Context) {
                         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(result)
                     }.getOrNull() ?: raw
                 }
-                
+
                 // 读取相机参数
                 val focalLength = runCatching {
                     exif.getAttribute(ExifInterface.TAG_FOCAL_LENGTH)?.toFloatOrNull()?.let { fl ->
@@ -153,13 +157,13 @@ class PhotoMetadataReader(private val context: Context) {
                         "$focalMM mm"
                     }
                 }.getOrNull()
-                
+
                 val aperture = runCatching {
                     exif.getAttribute(ExifInterface.TAG_F_NUMBER)?.toFloatOrNull()?.let { fNum ->
                         "f/${String.format("%.1f", fNum)}"
                     }
                 }.getOrNull()
-                
+
                 val exposureTime = runCatching {
                     exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME)?.toFloatOrNull()?.let { expTime ->
                         if (expTime >= 1f) {
@@ -169,7 +173,7 @@ class PhotoMetadataReader(private val context: Context) {
                         }
                     }
                 }.getOrNull()
-                
+
                 val iso = runCatching {
                     exif.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY)
                 }.getOrNull()
@@ -193,7 +197,7 @@ class PhotoMetadataReader(private val context: Context) {
                     animationType = animatedInfo?.type
                 )
             }
-            
+
             // 无 EXIF 信息时，至少返回动态图片信息
             return PhotoMetadata(
                 createdDateTime = null,
@@ -225,7 +229,10 @@ class PhotoMetadataReader(private val context: Context) {
         } else {
             val latDir = if (latitude >= 0) "N" else "S"
             val lonDir = if (longitude >= 0) "E" else "W"
-            "GPS: ${String.format("%.4f°$latDir", Math.abs(latitude))}, ${String.format("%.4f°$lonDir", Math.abs(longitude))}"
+            "GPS: ${String.format(
+                "%.4f°$latDir",
+                Math.abs(latitude)
+            )}, ${String.format("%.4f°$lonDir", Math.abs(longitude))}"
         }
     }
 
@@ -249,8 +256,8 @@ class PhotoMetadataReader(private val context: Context) {
         val dLat = Math.toRadians(lat2 - lat1)
         val dLon = Math.toRadians(lon2 - lon1)
         val a = kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
-                kotlin.math.cos(Math.toRadians(lat1)) * kotlin.math.cos(Math.toRadians(lat2)) *
-                kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2)
+            kotlin.math.cos(Math.toRadians(lat1)) * kotlin.math.cos(Math.toRadians(lat2)) *
+            kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2)
         val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
         return earthRadius * c
     }
@@ -267,7 +274,7 @@ class PhotoMetadataReader(private val context: Context) {
 
     companion object {
         private data class CityCoord(val name: String, val lat: Double, val lon: Double)
-        
+
         private val CHINESE_CITIES = listOf(
             CityCoord("北京", 39.9042, 116.4074),
             CityCoord("上海", 31.2304, 121.4737),
