@@ -177,8 +177,10 @@ class GifEncoderImpl : AnimatedImageEncoder {
             val setFrameDurationMethod = gifEncoderClass.getMethod("setFrameDuration", Int::class.javaPrimitiveType)
             val setLoopCountMethod = gifEncoderClass.getMethod("setLoopCount", Int::class.javaPrimitiveType)
             val writeFrameMethod = gifEncoderClass.getMethod(
+                "writeFrame",
                 Bitmap::class.java,
-                Long::class.javaPrimitiveType
+                Long::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType
             )
             val flushMethod = gifEncoderClass.getMethod("flush")
 
@@ -188,7 +190,7 @@ class GifEncoderImpl : AnimatedImageEncoder {
             frames.forEachIndexed { index, frame ->
                 try {
                     val scaledBitmap = scaleBitmap(frame.bitmap, width, height)
-                    writeFrameMethod.invoke(gifEncoder, scaledBitmap, frame.duration.toLong())
+                    writeFrameMethod.invoke(gifEncoder, scaledBitmap, frame.duration.toLong(), 0)
 
                     if (scaledBitmap != frame.bitmap && !scaledBitmap.isRecycled) {
                         scaledBitmap.recycle()

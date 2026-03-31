@@ -242,7 +242,7 @@ class ExportManager(private val context: Context) {
                         }
 
                         frameCache.put(index, framedBitmap)
-                        composedFrames.add(AnimatedFrame(fradedBitmap, frame.duration))
+                        composedFrames.add(AnimatedFrame(framedBitmap, frame.duration))
                     }
 
                     if (shouldReportProgress(index + 1, totalFrames * 2)) {

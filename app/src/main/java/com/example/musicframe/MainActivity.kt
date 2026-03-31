@@ -89,9 +89,21 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     val permissions = rememberMultiplePermissionsState(permissions = permissionList)
+                    
+                    // 每次启动时检查并请求权限
                     LaunchedEffect(Unit) {
-                        permissions.launchMultiplePermissionRequest()
+                        if (!permissions.allPermissionsGranted) {
+                            permissions.launchMultiplePermissionRequest()
+                        }
                     }
+                    
+                    // 每次恢复时重新检查权限状态
+                    LaunchedEffect(permissions.allPermissionsGranted) {
+                        if (!permissions.allPermissionsGranted) {
+                            permissions.launchMultiplePermissionRequest()
+                        }
+                    }
+                    
                     musicFrameScreen(
                         viewModel = viewModel(factory = MusicFrameViewModelFactory(application)),
                         permissionsGranted = permissions.allPermissionsGranted

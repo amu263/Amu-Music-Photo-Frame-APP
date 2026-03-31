@@ -265,17 +265,42 @@ private fun QualityButton(
     enabled: Boolean,
     modifier: Modifier = Modifier
 ) {
-    androidx.compose.material3.Button(
-        onClick = onClick,
-        modifier = modifier,
-        enabled = enabled,
-        colors = if (selected) {
-            androidx.compose.material3.ButtonDefaults.buttonColors()
-        } else {
-            androidx.compose.material3.ButtonDefaults.outlinedButtonColors()
-        }
+    val backgroundColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.38f)
+            )
+            .border(
+                width = 1.dp,
+                color = if (enabled) {
+                    if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                } else {
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.38f)
+                },
+                shape = RoundedCornerShape(8.dp)
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Text(text)
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (enabled) contentColor else contentColor.copy(alpha = 0.38f)
+        )
     }
 }
 
