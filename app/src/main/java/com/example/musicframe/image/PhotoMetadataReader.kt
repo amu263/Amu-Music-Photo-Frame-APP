@@ -1,7 +1,9 @@
 package com.example.musicframe.image
 
 import android.content.Context
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
@@ -13,12 +15,67 @@ import java.util.Locale
 class PhotoMetadataReader(private val context: Context) {
 
     fun read(uri: Uri): PhotoMetadata {
+        // 首先检测是否为动态图片
+        val animatedInfo = detectAnimatedImage(uri)
+        
         return context.contentResolver.openInputStream(uri)?.use { stream ->
-            parse(stream)
-        } ?: PhotoMetadata(null, null, null, null, null, false, null, null)
+            parse(stream, animatedInfo)
+        } ?: PhotoMetadata(
+            createdDateTime = null,
+            latitude = null,
+            longitude = null,
+            altitude = null,
+            deviceModel = null,
+            isMotionPhoto = false,
+            motionVideoOffset = null,
+            locationText = null,
+            focalLength = null,
+            aperture = null,
+            exposureTime = null,
+            iso = null,
+            isAnimated = animatedInfo?.isAnimated ?: false,
+            frameCount = animatedInfo?.frameCount ?: 1,
+            duration = animatedInfo?.duration ?: 0L,
+            animationType = animatedInfo?.type
+        )
     }
+    
+    /**
+     * 检测图片是否为动态图片（GIF/Animated WebP）
+     */
+    private fun detectAnimatedImage(uri: Uri): AnimatedImageInfo? {
+        return try {
+            val mimeType = context.contentResolver.getType(uri)
+            val isGif = mimeType == "image/gif"
+            val isWebp = mimeType == "image/webp"
+            
+            if (!isGif && !isWebp) {
+                return null
+            }
+            
+            // 简单检测：GIF 或 WebP 都视为可能动态图片
+            // 详细的帧数和时长信息在导出时再解析
+            AnimatedImageInfo(
+                isAnimated = true,
+                frameCount = 1,  // 暂时设为 1，后续在 FrameComposer 中详细解析
+                duration = 0L,
+                type = if (isGif) PhotoMetadata.AnimationType.GIF 
+                       else PhotoMetadata.AnimationType.WEBP
+            )
+        } catch (e: Exception) {
+            // 检测失败，返回 null
+            null
+        }
+    }
+    
+    private data class AnimatedImageInfo(
+        val isAnimated: Boolean,
+        val frameCount: Int,
+        val duration: Long,
+        val type: PhotoMetadata.AnimationType
+    )
 
-    private fun parse(stream: InputStream): PhotoMetadata {
+    private fun parse(stream: InputStream, animatedInfo: AnimatedImageInfo? = null): PhotoMetadata {
         val tempFile = File(context.cacheDir, "temp_photo_${System.currentTimeMillis()}.jpg")
         try {
             tempFile.outputStream().use { output ->
@@ -129,11 +186,33 @@ class PhotoMetadataReader(private val context: Context) {
                     focalLength = focalLength,
                     aperture = aperture,
                     exposureTime = exposureTime,
-                    iso = iso
+                    iso = iso,
+                    isAnimated = animatedInfo?.isAnimated ?: false,
+                    frameCount = animatedInfo?.frameCount ?: 1,
+                    duration = animatedInfo?.duration ?: 0L,
+                    animationType = animatedInfo?.type
                 )
             }
             
-            return PhotoMetadata(null, null, null, null, null, false, null, null, null, null, null, null)
+            // 无 EXIF 信息时，至少返回动态图片信息
+            return PhotoMetadata(
+                createdDateTime = null,
+                latitude = null,
+                longitude = null,
+                altitude = null,
+                deviceModel = null,
+                isMotionPhoto = false,
+                motionVideoOffset = null,
+                locationText = null,
+                focalLength = null,
+                aperture = null,
+                exposureTime = null,
+                iso = null,
+                isAnimated = animatedInfo?.isAnimated ?: false,
+                frameCount = animatedInfo?.frameCount ?: 1,
+                duration = animatedInfo?.duration ?: 0L,
+                animationType = animatedInfo?.type
+            )
         } finally {
             tempFile.delete()
         }

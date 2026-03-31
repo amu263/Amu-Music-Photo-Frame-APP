@@ -12,8 +12,18 @@ data class PhotoMetadata(
     val focalLength: String? = null,
     val aperture: String? = null,
     val exposureTime: String? = null,
-    val iso: String? = null
+    val iso: String? = null,
+    // 动态照片相关字段
+    val isAnimated: Boolean = false,
+    val frameCount: Int = 1,
+    val duration: Long = 0L,  // 总时长（毫秒）
+    val animationType: AnimationType? = null
 ) {
+    enum class AnimationType {
+        GIF,
+        WEBP,
+        MOTION_PHOTO
+    }
     fun asReadableText(): String {
         val builder = mutableListOf<String>()
         createdDateTime?.let { builder += it }
@@ -28,9 +38,19 @@ data class PhotoMetadata(
         }
         
         deviceModel?.let { builder += it }
+        
+        // 动态照片信息
         if (isMotionPhoto) {
             builder += "实况照片"
+        } else if (isAnimated) {
+            val typeStr = when (animationType) {
+                AnimationType.GIF -> "GIF"
+                AnimationType.WEBP -> "WebP"
+                else -> "动态图片"
+            }
+            builder += "${typeStr} · ${frameCount}帧 · ${duration / 1000.0}s"
         }
+        
         return builder.joinToString(" · ")
     }
 

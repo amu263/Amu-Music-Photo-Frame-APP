@@ -662,6 +662,117 @@ class FrameComposer {
         hsv[2] = (hsv[2] + (1f - hsv[2]) * factor).coerceIn(0f, 1f)
         return android.graphics.Color.HSVToColor(hsv)
     }
+
+    /**
+     * 合成动态图片相框
+     * @param frames 动态图片的所有帧
+     * @param config 相框配置
+     * @param musicMetadata 音乐元数据
+     * @param photoMetadata 照片元数据
+     * @param headphoneInfo 耳机信息
+     * @param progressCallback 进度回调 (当前帧/总帧数)
+     */
+    fun composeAnimated(
+        frames: List<AnimatedFrame>,
+        config: FrameConfig,
+        musicMetadata: MusicMetadata?,
+        photoMetadata: PhotoMetadata?,
+        headphoneInfo: HeadphoneInfo?,
+        progressCallback: ((Int, Int) -> Unit)? = null
+    ): AnimatedFrameResult {
+        if (frames.isEmpty()) {
+            throw IllegalArgumentException("Frames list cannot be empty")
+        }
+
+        val totalFrames = frames.size
+        val resultFrames = mutableListOf<Bitmap>()
+        val resultDurations = mutableListOf<Int>()
+        
+        // 使用第一帧的尺寸作为输出尺寸参考
+        val firstFrame = frames[0]
+        val sampleParams = DrawRenderParams(
+            source = firstFrame.bitmap,
+            musicLines = buildMusicLines(musicMetadata),
+            photoLines = emptyList(),
+            headphoneLines = buildHeadphoneLines(headphoneInfo),
+            customText = "",
+            frameColor = 0,
+            textColor = 0,
+            headphoneTextColor = 0,
+            appIcon = null,
+            headphoneIcon = null,
+            config = config
+        )
+        
+        // 计算输出尺寸（只需要计算一次）
+        val outputSize = calculateOutputSize(sampleParams, config)
+        
+        // 逐帧处理
+        frames.forEachIndexed { index, animatedFrame ->
+            try {
+                // 合成当前帧
+                val framedBitmap = compose(
+                    source = animatedFrame.bitmap,
+                    config = config,
+                    musicMetadata = musicMetadata,
+                    photoMetadata = photoMetadata,
+                    headphoneInfo = headphoneInfo
+                )
+                
+                resultFrames += framedBitmap
+                resultDurations += animatedFrame.duration
+                
+                // 进度回调
+                progressCallback?.invoke(index + 1, totalFrames)
+                
+            } catch (e: Exception) {
+                // 记录错误但继续处理其他帧
+                Log.e("FrameComposer", "Error processing frame $index: ${e.message}")
+                // 如果某帧处理失败，使用原图
+                resultFrames += animatedFrame.bitmap
+                resultDurations += animatedFrame.duration
+            }
+        }
+        
+        val totalDuration = resultDurations.sum().toLong()
+        
+        return AnimatedFrameResult(
+            frames = resultFrames,
+            frameDurations = resultDurations,
+            width = outputSize.width,
+            height = outputSize.height,
+            totalFrames = totalFrames,
+            totalDuration = totalDuration
+        )
+    }
+    
+    /**
+     * 计算输出尺寸（辅助方法）
+     */
+    private fun calculateOutputSize(params: DrawRenderParams, config: FrameConfig): android.graphics.Point {
+        val source = params.source
+        val width = source.width
+        val height = source.height
+        
+        val frameWidth = (min(width, height) * 0.12f).toInt()
+        val bottomFrameHeight = (height * 0.25f).toInt()
+        val outputWidth = width + frameWidth * 2
+        val outputHeight = height + frameWidth + bottomFrameHeight
+        
+        return android.graphics.Point(outputWidth, outputHeight)
+    }
+    
+    /**
+     * 从 Point 获取宽度
+     */
+    private val android.graphics.Point.width: Int
+        get() = x
+    
+    /**
+     * 从 Point 获取高度
+     */
+    private val android.graphics.Point.height: Int
+        get() = y
 }
 
 data class DrawRenderParams(
@@ -676,4 +787,24 @@ data class DrawRenderParams(
     val appIcon: Bitmap?,
     val headphoneIcon: Bitmap?,
     val config: FrameConfig? = null
+)
+
+/**
+ * 动态图片合成结果
+ */
+data class AnimatedFrameResult(
+    val frames: List<Bitmap>,
+    val frameDurations: List<Int>,
+    val width: Int,
+    val height: Int,
+    val totalFrames: Int,
+    val totalDuration: Long
+)
+
+/**
+ * 动态图片帧数据
+ */
+data class AnimatedFrame(
+    val bitmap: Bitmap,
+    val duration: Int
 )
