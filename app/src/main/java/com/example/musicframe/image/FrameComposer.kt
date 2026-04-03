@@ -327,9 +327,18 @@ class FrameComposer {
         isSolidColorMode: Boolean = false,
         config: FrameConfig? = null
     ) {
-        // 直接使用传入的 frameColor，避免重复计算（与 drawPremiumLeica 保持一致）
-        val textColor = invertedColor(frameColor)
-        val subTextColor = (textColor and 0x00FFFFFF) or 0x99000000.toInt()
+        // 纯色模式和自定义色模式使用相框颜色的高对比色，徕卡模式使用反色
+        val textColor = if (isSolidColorMode || isMusicFlowMode) {
+            getHighContrastTextColor(frameColor)
+        } else {
+            invertedColor(frameColor)
+        }
+        val subTextColor = if (isSolidColorMode || isMusicFlowMode) {
+            // 纯色模式下副标题也使用高对比色，但降低不透明度
+            (textColor and 0x00FFFFFF) or 0xCC000000.toInt()
+        } else {
+            (textColor and 0x00FFFFFF) or 0x99000000.toInt()
+        }
         val bottomStartY = (frameWidth + height).toFloat()
         val centerX = width / 2f
         
