@@ -241,8 +241,8 @@ class FrameComposer {
         // 中央清晰原图
         canvas.drawBitmap(source, frameWidth.toFloat(), frameWidth.toFloat(), null)
         
-        // 底部内容
-        drawLeicaContent(canvas, renderParams, config.photoMetadata, outputWidth, height, bottomFrameHeight, bgColor, frameWidth)
+        // 底部内容（自定义徕卡色模式使用纯色背景，需要高对比色且跳过描边）
+        drawLeicaContent(canvas, renderParams, config.photoMetadata, outputWidth, height, bottomFrameHeight, bgColor, frameWidth, isSolidColorMode = true)
         
         return output
     }
