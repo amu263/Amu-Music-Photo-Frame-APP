@@ -71,30 +71,19 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
             // 选择新图片时，先清理旧的缓存图片
             clearImageCache()
             
-            // 方案：将图片复制到 app 私有目录，避免 URI 权限问题
-            val copiedUri = copyUriToCache(uri)
-            if (copiedUri == null) {
+            // 方案：将图片复制到 app 私有目录，直接保存文件路径，避免 URI 权限问题
+            val copiedFile = copyUriToFile(uri)
+            if (copiedFile == null) {
                 android.util.Log.e("MusicFrame", "复制图片到缓存失败：$uri")
                 _uiState.update { it.copy(message = "无法加载图片") }
                 return@launch
             }
-            android.util.Log.i("MusicFrame", "图片已复制到缓存：$copiedUri")
+            android.util.Log.i("MusicFrame", "图片已复制到缓存：${copiedFile.absolutePath}")
             
-            // 尝试获取持久化 URI 权限（对原始 URI）
-            try {
-                getApplication<Application>().contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-                android.util.Log.i("MusicFrame", "成功获取原始 URI 的持久化权限")
-            } catch (e: Exception) {
-                android.util.Log.w("MusicFrame", "无法获取持久化权限，使用缓存副本", e)
-            }
-            
-            // 从缓存副本加载图片
-            val bitmap = loadBitmap(copiedUri)
+            // 从缓存文件加载图片
+            val bitmap = loadBitmapFromFile(copiedFile)
             if (bitmap == null) {
-                android.util.Log.e("MusicFrame", "从缓存加载图片失败：$copiedUri")
+                android.util.Log.e("MusicFrame", "从缓存文件加载图片失败：${copiedFile.absolutePath}")
                 _uiState.update { it.copy(message = "无法加载图片") }
                 return@launch
             }
@@ -123,7 +112,7 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
             
             _uiState.update {
                 it.copy(
-                    selectedImageUri = copiedUri, // 使用缓存副本的 URI
+                    selectedImageUri = uri, // 保留原始 URI 用于元数据读取
                     originalBitmap = bitmap,
                     photoMetadata = photoMetadata,
                     message = null
@@ -133,7 +122,7 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    private suspend fun copyUriToCache(uri: Uri): Uri? = withContext(Dispatchers.IO) {
+    private suspend fun copyUriToFile(uri: Uri): File? = withContext(Dispatchers.IO) {
         try {
             val cacheDir = File(getApplication<Application>().cacheDir, "images")
             cacheDir.mkdirs()
@@ -147,16 +136,32 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
             }
             
             if (targetFile.exists() && targetFile.length() > 0) {
-                FileProvider.getUriForFile(
-                    getApplication<Application>(),
-                    "${getApplication<Application>().packageName}.fileprovider",
-                    targetFile
-                )
+                targetFile
             } else {
                 null
             }
         } catch (e: Exception) {
-            android.util.Log.e("MusicFrame", "复制图片到缓存失败", e)
+            android.util.Log.e("MusicFrame", "复制图片到缓存文件失败", e)
+            null
+        }
+    }
+
+    private suspend fun loadBitmapFromFile(file: File): Bitmap? = withContext(Dispatchers.IO) {
+        runCatching {
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            BitmapFactory.decodeFile(file.absolutePath, options)
+            
+            val sampleSize = calculateSampleSize(options.outWidth, options.outHeight)
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            
+            BitmapFactory.decodeFile(file.absolutePath, decodeOptions)
+        }.getOrElse { error ->
+            android.util.Log.e("MusicFrame", "从文件加载图片失败：${error.message}", error)
             null
         }
     }
