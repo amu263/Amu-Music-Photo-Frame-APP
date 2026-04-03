@@ -68,6 +68,9 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             android.util.Log.i("MusicFrame", "开始处理图片选择：$uri")
             
+            // 选择新图片时，先清理旧的缓存图片
+            clearImageCache()
+            
             // 方案：将图片复制到 app 私有目录，避免 URI 权限问题
             val copiedUri = copyUriToCache(uri)
             if (copiedUri == null) {
@@ -155,6 +158,21 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         } catch (e: Exception) {
             android.util.Log.e("MusicFrame", "复制图片到缓存失败", e)
             null
+        }
+    }
+
+    private fun clearImageCache() {
+        try {
+            val cacheDir = File(getApplication<Application>().cacheDir, "images")
+            if (cacheDir.exists() && cacheDir.isDirectory) {
+                cacheDir.listFiles()?.forEach { file ->
+                    file.delete()
+                    android.util.Log.d("MusicFrame", "清理缓存文件：${file.name}")
+                }
+                android.util.Log.d("MusicFrame", "图片缓存已清理")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("MusicFrame", "清理缓存失败", e)
         }
     }
 
