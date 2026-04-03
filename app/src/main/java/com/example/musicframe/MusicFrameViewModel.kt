@@ -71,14 +71,25 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
             // 选择新图片时，先清理旧的缓存图片
             clearImageCache()
             
+            // 先尝试获取持久化 URI 权限（在复制之前）
+            try {
+                getApplication<Application>().contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                android.util.Log.i("MusicFrame", "成功获取原始 URI 的持久化权限")
+            } catch (e: Exception) {
+                android.util.Log.w("MusicFrame", "无法获取持久化权限，尝试使用临时权限复制", e)
+            }
+            
             // 方案：将图片复制到 app 私有目录，直接保存文件路径，避免 URI 权限问题
             val copiedFile = copyUriToFile(uri)
             if (copiedFile == null) {
                 android.util.Log.e("MusicFrame", "复制图片到缓存失败：$uri")
-                _uiState.update { it.copy(message = "无法加载图片") }
+                _uiState.update { it.copy(message = "无法加载图片 - 请检查是否选择了正确的图片") }
                 return@launch
             }
-            android.util.Log.i("MusicFrame", "图片已复制到缓存：${copiedFile.absolutePath}")
+            android.util.Log.i("MusicFrame", "图片已复制到缓存：${copiedFile.absolutePath}, 大小：${copiedFile.length()} bytes")
             
             // 从缓存文件加载图片
             val bitmap = loadBitmapFromFile(copiedFile)
@@ -129,19 +140,30 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
             val fileName = "selected_${System.currentTimeMillis()}.jpg"
             val targetFile = File(cacheDir, fileName)
             
-            getApplication<Application>().contentResolver.openInputStream(uri)?.use { input ->
+            android.util.Log.d("MusicFrame", "尝试打开 URI 输入流：$uri")
+            val inputStream = getApplication<Application>().contentResolver.openInputStream(uri)
+            if (inputStream == null) {
+                android.util.Log.e("MusicFrame", "无法打开 URI 输入流，可能没有读取权限")
+                return@withContext null
+            }
+            
+            android.util.Log.d("MusicFrame", "成功打开输入流，开始复制到：${targetFile.absolutePath}")
+            inputStream.use { input ->
                 FileOutputStream(targetFile).use { output ->
-                    input.copyTo(output)
+                    val bytesCopied = input.copyTo(output)
+                    android.util.Log.d("MusicFrame", "复制完成，字节数：$bytesCopied")
                 }
             }
             
             if (targetFile.exists() && targetFile.length() > 0) {
+                android.util.Log.d("MusicFrame", "文件创建成功，大小：${targetFile.length()} bytes")
                 targetFile
             } else {
+                android.util.Log.e("MusicFrame", "文件创建失败或为空")
                 null
             }
         } catch (e: Exception) {
-            android.util.Log.e("MusicFrame", "复制图片到缓存文件失败", e)
+            android.util.Log.e("MusicFrame", "复制图片到缓存文件失败：${e.message}", e)
             null
         }
     }
