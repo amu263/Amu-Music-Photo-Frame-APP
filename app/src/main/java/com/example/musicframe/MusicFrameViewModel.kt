@@ -2,6 +2,7 @@ package com.example.musicframe
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
@@ -63,6 +64,11 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
     fun onImageSelected(uri: Uri?) {
         if (uri == null) return
         viewModelScope.launch {
+            // 获取持久化 URI 权限，解决 DCIM/Camera 等目录无法读取的问题
+            getApplication<Application>().contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
             val bitmap = loadBitmap(uri)
             val photoMetadata = withContext(Dispatchers.IO) { photoMetadataReader.read(uri) }
             if (bitmap == null) {
