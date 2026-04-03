@@ -64,17 +64,29 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
     fun onImageSelected(uri: Uri?) {
         if (uri == null) return
         viewModelScope.launch {
-            // 获取持久化 URI 权限，解决 DCIM/Camera 等目录无法读取的问题
-            getApplication<Application>().contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
+            // 尝试获取持久化 URI 权限（Android 13+ 对 DCIM/Camera 目录可能需要）
+            try {
+                getApplication<Application>().contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                android.util.Log.i("MusicFrame", "成功获取持久化 URI 权限：$uri")
+            } catch (e: SecurityException) {
+                android.util.Log.w("MusicFrame", "无法获取持久化权限，使用临时权限：$uri", e)
+            } catch (e: Exception) {
+                android.util.Log.w("MusicFrame", "获取权限时出错：$uri", e)
+            }
+            
+            android.util.Log.i("MusicFrame", "开始加载图片：$uri")
             val bitmap = loadBitmap(uri)
-            val photoMetadata = withContext(Dispatchers.IO) { photoMetadataReader.read(uri) }
             if (bitmap == null) {
+                android.util.Log.e("MusicFrame", "图片加载失败：$uri")
                 _uiState.update { it.copy(message = "无法加载图片") }
                 return@launch
             }
+            android.util.Log.i("MusicFrame", "图片加载成功，尺寸：${bitmap.width}x${bitmap.height}")
+            
+            val photoMetadata = withContext(Dispatchers.IO) { photoMetadataReader.read(uri) }
             _uiState.update {
                 it.copy(
                     selectedImageUri = uri,
@@ -242,6 +254,13 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
     private suspend fun loadBitmap(uri: Uri): Bitmap? = withContext(Dispatchers.IO) {
         val resolver = getApplication<Application>().contentResolver
         runCatching {
+            // 尝试重新获取临时权限（如果之前获取持久化权限失败）
+            try {
+                resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) {
+                // 忽略异常，继续使用现有权限
+            }
+            
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val source = ImageDecoder.createSource(resolver, uri)
                 ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
@@ -264,7 +283,11 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
                     }
                 }
             }
-        }.getOrNull()
+        }.getOrElse { error ->
+            // 记录错误日志
+            android.util.Log.e("MusicFrame", "加载图片失败：${error.message}", error)
+            null
+        }
     }
 
     private fun calculateTargetSize(width: Int, height: Int): Pair<Int, Int> {
