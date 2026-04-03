@@ -308,8 +308,8 @@ class FrameComposer {
         // 中央清晰原图
         canvas.drawBitmap(source, frameWidth.toFloat(), frameWidth.toFloat(), null)
         
-        // 底部内容（使用实际背景色计算文字颜色，与背景保持一致）
-        drawLeicaContent(canvas, renderParams, config.photoMetadata, outputWidth, height, bottomFrameHeight, bgColor, frameWidth)
+        // 底部内容（纯色模式不需要文字描边，避免异色斑点）
+        drawLeicaContent(canvas, renderParams, config.photoMetadata, outputWidth, height, bottomFrameHeight, bgColor, frameWidth, isSolidColorMode = true)
         
         return output
     }
@@ -324,6 +324,7 @@ class FrameComposer {
         frameColor: Int,
         frameWidth: Int = 0,
         isMusicFlowMode: Boolean = false,
+        isSolidColorMode: Boolean = false,
         config: FrameConfig? = null
     ) {
         // 直接使用传入的 frameColor，避免重复计算（与 drawPremiumLeica 保持一致）
@@ -375,7 +376,8 @@ class FrameComposer {
             }
             
             // 高级徕卡模式：为文字添加对比色描边（保护文字不受复杂照片颜色影响）
-            if (!isMusicFlowMode) {
+            // 纯色模式不需要描边，避免异色斑点
+            if (!isMusicFlowMode && !isSolidColorMode) {
                 val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     style = android.graphics.Paint.Style.STROKE
                     strokeWidth = musicPaint.textSize * 0.08f  // 描边宽度为文字大小的 8%
@@ -443,7 +445,8 @@ class FrameComposer {
             
             val playerX = separatorX + separatorWidth + actualIconGap
             // 高级徕卡模式使用对比色描边，音乐流光模式使用高对比度颜色
-            if (!isMusicFlowMode) {
+            // 纯色模式不需要描边，避免异色斑点
+            if (!isMusicFlowMode && !isSolidColorMode) {
                 // 为播放器信息文字添加对比色描边
                 val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     style = android.graphics.Paint.Style.STROKE
@@ -451,7 +454,7 @@ class FrameComposer {
                     color = invertColorForStroke(textColor)
                 }
                 canvas.drawText(playerText, playerX, secondRowCenterY, strokePaint)
-            } else {
+            } else if (isMusicFlowMode) {
                 playerPaint.color = getHighContrastTextColor(frameColor)
             }
             canvas.drawText(playerText, playerX, secondRowCenterY, playerPaint)
@@ -491,7 +494,8 @@ class FrameComposer {
                 }
             }
             // 高级徕卡模式：为相机参数文字添加对比色描边
-            if (!isMusicFlowMode) {
+            // 纯色模式不需要描边，避免异色斑点
+            if (!isMusicFlowMode && !isSolidColorMode) {
                 val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     style = android.graphics.Paint.Style.STROKE
                     strokeWidth = infoPaint.textSize * 0.08f
@@ -530,7 +534,8 @@ class FrameComposer {
             timePaint.color = getHighContrastTextColor(frameColor).let { color -> (color and 0x00FFFFFF) or 0xCC000000.toInt() }
         }
         // 高级徕卡模式：为时间戳文字添加对比色描边
-        if (!isMusicFlowMode) {
+        // 纯色模式不需要描边，避免异色斑点
+        if (!isMusicFlowMode && !isSolidColorMode) {
             val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = android.graphics.Paint.Style.STROKE
                 strokeWidth = timePaint.textSize * 0.08f
