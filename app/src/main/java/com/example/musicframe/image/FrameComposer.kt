@@ -308,8 +308,8 @@ class FrameComposer {
         // 中央清晰原图
         canvas.drawBitmap(source, frameWidth.toFloat(), frameWidth.toFloat(), null)
         
-        // 底部内容（使用封面原色计算文字颜色）
-        drawLeicaContent(canvas, renderParams, config.photoMetadata, outputWidth, height, bottomFrameHeight, dominantColor, frameWidth)
+        // 底部内容（使用实际背景色计算文字颜色，与背景保持一致）
+        drawLeicaContent(canvas, renderParams, config.photoMetadata, outputWidth, height, bottomFrameHeight, bgColor, frameWidth)
         
         return output
     }
@@ -326,7 +326,8 @@ class FrameComposer {
         isMusicFlowMode: Boolean = false,
         config: FrameConfig? = null
     ) {
-        val textColor = config?.let { invertedColor(renderParams.frameColor.toInt()) } ?: invertedColor(frameColor)
+        // 直接使用传入的 frameColor，避免重复计算（与 drawPremiumLeica 保持一致）
+        val textColor = invertedColor(frameColor)
         val subTextColor = (textColor and 0x00FFFFFF) or 0x99000000.toInt()
         val bottomStartY = (frameWidth + height).toFloat()
         val centerX = width / 2f
