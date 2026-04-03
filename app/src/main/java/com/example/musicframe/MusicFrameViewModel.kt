@@ -10,6 +10,7 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
+import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.musicframe.domain.model.FrameColorMode
@@ -20,6 +21,7 @@ import com.example.musicframe.export.ImageExporter.MotionPhotoInfo
 import com.example.musicframe.image.FrameComposer
 import com.example.musicframe.image.FrameConfig
 import com.example.musicframe.image.FrameMode
+import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.image.PhotoMetadataReader
 import com.example.musicframe.media.HeadphoneInfoRepository
 import com.example.musicframe.media.MusicMetadataRepository
@@ -64,38 +66,95 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
     fun onImageSelected(uri: Uri?) {
         if (uri == null) return
         viewModelScope.launch {
-            // 尝试获取持久化 URI 权限（Android 13+ 对 DCIM/Camera 目录可能需要）
+            android.util.Log.i("MusicFrame", "开始处理图片选择：$uri")
+            
+            // 方案：将图片复制到 app 私有目录，避免 URI 权限问题
+            val copiedUri = copyUriToCache(uri)
+            if (copiedUri == null) {
+                android.util.Log.e("MusicFrame", "复制图片到缓存失败：$uri")
+                _uiState.update { it.copy(message = "无法加载图片") }
+                return@launch
+            }
+            android.util.Log.i("MusicFrame", "图片已复制到缓存：$copiedUri")
+            
+            // 尝试获取持久化 URI 权限（对原始 URI）
             try {
                 getApplication<Application>().contentResolver.takePersistableUriPermission(
                     uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
-                android.util.Log.i("MusicFrame", "成功获取持久化 URI 权限：$uri")
-            } catch (e: SecurityException) {
-                android.util.Log.w("MusicFrame", "无法获取持久化权限，使用临时权限：$uri", e)
+                android.util.Log.i("MusicFrame", "成功获取原始 URI 的持久化权限")
             } catch (e: Exception) {
-                android.util.Log.w("MusicFrame", "获取权限时出错：$uri", e)
+                android.util.Log.w("MusicFrame", "无法获取持久化权限，使用缓存副本", e)
             }
             
-            android.util.Log.i("MusicFrame", "开始加载图片：$uri")
-            val bitmap = loadBitmap(uri)
+            // 从缓存副本加载图片
+            val bitmap = loadBitmap(copiedUri)
             if (bitmap == null) {
-                android.util.Log.e("MusicFrame", "图片加载失败：$uri")
+                android.util.Log.e("MusicFrame", "从缓存加载图片失败：$copiedUri")
                 _uiState.update { it.copy(message = "无法加载图片") }
                 return@launch
             }
             android.util.Log.i("MusicFrame", "图片加载成功，尺寸：${bitmap.width}x${bitmap.height}")
             
-            val photoMetadata = withContext(Dispatchers.IO) { photoMetadataReader.read(uri) }
+            // 从原始 URI 读取元数据（如果失败则忽略）
+            val photoMetadata = withContext(Dispatchers.IO) {
+                runCatching { photoMetadataReader.read(uri) }.getOrElse {
+                    android.util.Log.w("MusicFrame", "读取元数据失败，使用默认值", it)
+                    PhotoMetadata(
+                        createdDateTime = null,
+                        latitude = null,
+                        longitude = null,
+                        altitude = null,
+                        deviceModel = null,
+                        isMotionPhoto = false,
+                        motionVideoOffset = null,
+                        locationText = null,
+                        focalLength = null,
+                        aperture = null,
+                        exposureTime = null,
+                        iso = null
+                    )
+                }
+            }
+            
             _uiState.update {
                 it.copy(
-                    selectedImageUri = uri,
+                    selectedImageUri = copiedUri, // 使用缓存副本的 URI
                     originalBitmap = bitmap,
                     photoMetadata = photoMetadata,
                     message = null
                 )
             }
             rebuildFrame()
+        }
+    }
+
+    private suspend fun copyUriToCache(uri: Uri): Uri? = withContext(Dispatchers.IO) {
+        try {
+            val cacheDir = File(getApplication<Application>().cacheDir, "images")
+            cacheDir.mkdirs()
+            val fileName = "selected_${System.currentTimeMillis()}.jpg"
+            val targetFile = File(cacheDir, fileName)
+            
+            getApplication<Application>().contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(targetFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+            
+            if (targetFile.exists() && targetFile.length() > 0) {
+                FileProvider.getUriForFile(
+                    getApplication<Application>(),
+                    "${getApplication<Application>().packageName}.fileprovider",
+                    targetFile
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MusicFrame", "复制图片到缓存失败", e)
+            null
         }
     }
 
