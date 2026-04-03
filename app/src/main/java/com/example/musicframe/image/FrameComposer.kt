@@ -326,7 +326,7 @@ class FrameComposer {
         isMusicFlowMode: Boolean = false,
         config: FrameConfig? = null
     ) {
-        val textColor = config?.let { invertedColor(it.getFrameColor(renderParams.frameColor.toInt(), forMusicFlow = isMusicFlowMode)) } ?: invertedColor(frameColor)
+        val textColor = config?.let { invertedColor(renderParams.frameColor.toInt()) } ?: invertedColor(frameColor)
         val subTextColor = (textColor and 0x00FFFFFF) or 0x99000000.toInt()
         val bottomStartY = (frameWidth + height).toFloat()
         val centerX = width / 2f
