@@ -142,7 +142,7 @@ class PhotoMetadataReader(private val context: Context) {
     private fun reverseGeocode(latitude: Double, longitude: Double): String? {
         val nearestCity = findNearestCity(latitude, longitude)
         return if (nearestCity != null) {
-            "中国 · $nearestCity"
+            "中国·${nearestCity.province}·${nearestCity.name}"
         } else {
             val latDir = if (latitude >= 0) "N" else "S"
             val lonDir = if (longitude >= 0) "E" else "W"
@@ -150,19 +150,19 @@ class PhotoMetadataReader(private val context: Context) {
         }
     }
 
-    private fun findNearestCity(lat: Double, lon: Double): String? {
-        var nearestCity: String? = null
+    private fun findNearestCity(lat: Double, lon: Double): CityCoord? {
+        var nearestCity: CityCoord? = null
         var minDistanceKm = Double.MAX_VALUE
 
         for (city in CHINESE_CITIES) {
             val distance = haversineDistance(lat, lon, city.lat, city.lon)
             if (distance < minDistanceKm) {
                 minDistanceKm = distance
-                nearestCity = city.name
+                nearestCity = city
             }
         }
 
-        return if (minDistanceKm <= 100.0) nearestCity else null
+        return if (minDistanceKm <= 150.0) nearestCity else null
     }
 
     private fun haversineDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
@@ -187,68 +187,68 @@ class PhotoMetadataReader(private val context: Context) {
     }
 
     companion object {
-        private data class CityCoord(val name: String, val lat: Double, val lon: Double)
+        private data class CityCoord(val name: String, val province: String, val lat: Double, val lon: Double)
         
         private val CHINESE_CITIES = listOf(
-            CityCoord("北京", 39.9042, 116.4074),
-            CityCoord("上海", 31.2304, 121.4737),
-            CityCoord("广州", 23.1291, 113.2644),
-            CityCoord("深圳", 22.5431, 114.0579),
-            CityCoord("杭州", 30.2741, 120.1551),
-            CityCoord("成都", 30.5728, 104.0668),
-            CityCoord("武汉", 30.5928, 114.3055),
-            CityCoord("西安", 34.3416, 108.9398),
-            CityCoord("南京", 32.0603, 118.7969),
-            CityCoord("重庆", 29.4316, 106.9123),
-            CityCoord("天津", 39.3434, 117.3616),
-            CityCoord("苏州", 31.2990, 120.5853),
-            CityCoord("青岛", 36.0671, 120.3826),
-            CityCoord("厦门", 24.4798, 118.0894),
-            CityCoord("长沙", 28.2282, 112.9388),
-            CityCoord("郑州", 34.7466, 113.6253),
-            CityCoord("济南", 36.6512, 117.1209),
-            CityCoord("沈阳", 41.8057, 123.4315),
-            CityCoord("哈尔滨", 45.8038, 126.5340),
-            CityCoord("长春", 43.8171, 125.3235),
-            CityCoord("石家庄", 38.0428, 114.5149),
-            CityCoord("太原", 37.8706, 112.5489),
-            CityCoord("合肥", 31.8206, 117.2272),
-            CityCoord("南昌", 28.6829, 115.8579),
-            CityCoord("福州", 26.0745, 119.2965),
-            CityCoord("贵阳", 26.6470, 106.6302),
-            CityCoord("昆明", 25.0406, 102.7125),
-            CityCoord("南宁", 22.8170, 108.3665),
-            CityCoord("海口", 20.0444, 110.1999),
-            CityCoord("兰州", 36.0611, 103.8343),
-            CityCoord("西宁", 36.6171, 101.7782),
-            CityCoord("银川", 38.4872, 106.2309),
-            CityCoord("乌鲁木齐", 43.8256, 87.6168),
-            CityCoord("拉萨", 29.6500, 91.1409),
-            CityCoord("呼和浩特", 40.8414, 111.7519),
-            CityCoord("大连", 38.9140, 121.6147),
-            CityCoord("宁波", 29.8683, 121.5440),
-            CityCoord("无锡", 31.4912, 120.3119),
-            CityCoord("佛山", 23.0218, 113.1219),
-            CityCoord("东莞", 23.0205, 113.7518),
-            CityCoord("温州", 28.0006, 120.6719),
-            CityCoord("珠海", 22.2719, 113.5767),
-            CityCoord("中山", 22.5170, 113.3926),
-            CityCoord("惠州", 23.1115, 114.4152),
-            CityCoord("烟台", 37.4638, 121.4478),
-            CityCoord("泉州", 24.8740, 118.6757),
-            CityCoord("南通", 32.0085, 120.8943),
-            CityCoord("常州", 31.8122, 119.9692),
-            CityCoord("嘉兴", 30.7467, 120.7508),
-            CityCoord("绍兴", 30.0003, 120.5820),
-            CityCoord("台州", 28.6561, 121.4286),
-            CityCoord("桂林", 25.2736, 110.2900),
-            CityCoord("三亚", 18.2528, 109.5117),
-            CityCoord("北海", 21.4733, 109.5117),
-            CityCoord("绵阳", 31.4677, 104.6794),
-            CityCoord("德阳", 31.1270, 104.3979),
-            CityCoord("遵义", 27.7256, 106.9279),
-            CityCoord("大理", 25.6065, 100.2679),
-            CityCoord("丽江", 26.8721, 100.2299)
+            CityCoord("北京", "北京", 39.9042, 116.4074),
+            CityCoord("上海", "上海", 31.2304, 121.4737),
+            CityCoord("广州", "广东", 23.1291, 113.2644),
+            CityCoord("深圳", "广东", 22.5431, 114.0579),
+            CityCoord("杭州", "浙江", 30.2741, 120.1551),
+            CityCoord("成都", "四川", 30.5728, 104.0668),
+            CityCoord("武汉", "湖北", 30.5928, 114.3055),
+            CityCoord("西安", "陕西", 34.3416, 108.9398),
+            CityCoord("南京", "江苏", 32.0603, 118.7969),
+            CityCoord("重庆", "重庆", 29.4316, 106.9123),
+            CityCoord("天津", "天津", 39.3434, 117.3616),
+            CityCoord("苏州", "江苏", 31.2990, 120.5853),
+            CityCoord("青岛", "山东", 36.0671, 120.3826),
+            CityCoord("厦门", "福建", 24.4798, 118.0894),
+            CityCoord("长沙", "湖南", 28.2282, 112.9388),
+            CityCoord("郑州", "河南", 34.7466, 113.6253),
+            CityCoord("济南", "山东", 36.6512, 117.1209),
+            CityCoord("沈阳", "辽宁", 41.8057, 123.4315),
+            CityCoord("哈尔滨", "黑龙江", 45.8038, 126.5340),
+            CityCoord("长春", "吉林", 43.8171, 125.3235),
+            CityCoord("石家庄", "河北", 38.0428, 114.5149),
+            CityCoord("太原", "山西", 37.8706, 112.5489),
+            CityCoord("合肥", "安徽", 31.8206, 117.2272),
+            CityCoord("南昌", "江西", 28.6829, 115.8579),
+            CityCoord("福州", "福建", 26.0745, 119.2965),
+            CityCoord("贵阳", "贵州", 26.6470, 106.6302),
+            CityCoord("昆明", "云南", 25.0406, 102.7125),
+            CityCoord("南宁", "广西", 22.8170, 108.3665),
+            CityCoord("海口", "海南", 20.0444, 110.1999),
+            CityCoord("兰州", "甘肃", 36.0611, 103.8343),
+            CityCoord("西宁", "青海", 36.6171, 101.7782),
+            CityCoord("银川", "宁夏", 38.4872, 106.2309),
+            CityCoord("乌鲁木齐", "新疆", 43.8256, 87.6168),
+            CityCoord("拉萨", "西藏", 29.6500, 91.1409),
+            CityCoord("呼和浩特", "内蒙古", 40.8414, 111.7519),
+            CityCoord("大连", "辽宁", 38.9140, 121.6147),
+            CityCoord("宁波", "浙江", 29.8683, 121.5440),
+            CityCoord("无锡", "江苏", 31.4912, 120.3119),
+            CityCoord("佛山", "广东", 23.0218, 113.1219),
+            CityCoord("东莞", "广东", 23.0205, 113.7518),
+            CityCoord("温州", "浙江", 28.0006, 120.6719),
+            CityCoord("珠海", "广东", 22.2719, 113.5767),
+            CityCoord("中山", "广东", 22.5170, 113.3926),
+            CityCoord("惠州", "广东", 23.1115, 114.4152),
+            CityCoord("烟台", "山东", 37.4638, 121.4478),
+            CityCoord("泉州", "福建", 24.8740, 118.6757),
+            CityCoord("南通", "江苏", 32.0085, 120.8943),
+            CityCoord("常州", "江苏", 31.8122, 119.9692),
+            CityCoord("嘉兴", "浙江", 30.7467, 120.7508),
+            CityCoord("绍兴", "浙江", 30.0003, 120.5820),
+            CityCoord("台州", "浙江", 28.6561, 121.4286),
+            CityCoord("桂林", "广西", 25.2736, 110.2900),
+            CityCoord("三亚", "海南", 18.2528, 109.5117),
+            CityCoord("北海", "广西", 21.4733, 109.5117),
+            CityCoord("绵阳", "四川", 31.4677, 104.6794),
+            CityCoord("德阳", "四川", 31.1270, 104.3979),
+            CityCoord("遵义", "贵州", 27.7256, 106.9279),
+            CityCoord("大理", "云南", 25.6065, 100.2679),
+            CityCoord("丽江", "云南", 26.8721, 100.2299)
         )
 
         private val MOTION_PHOTO_FLAG_TAGS = listOf(

@@ -199,7 +199,7 @@ class FrameComposer {
         val timeY = infoY + separatorHeight * 1.2f
         canvas.drawText(timeText, centerX, timeY, timePaint)
         
-        // 地点信息
+        // 地点信息（显示在照片顶端中央，国家·省份·城市格式）
         val locationText = config.photoMetadata?.locationText
         if (!locationText.isNullOrBlank() && frameWidth > 0) {
             val topFrameCenterY = frameWidth.toFloat() / 2f
@@ -207,12 +207,21 @@ class FrameComposer {
                 color = textColor
                 textSize = frameWidth.toFloat() * 0.35f
                 textAlign = Paint.Align.CENTER
+                typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+            }
+            // 高级徕卡模式：为地点文字添加对比色描边
+            val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = android.graphics.Paint.Style.STROKE
+                strokeWidth = locationPaint.textSize * 0.08f
+                color = invertColorForStroke(textColor)
             }
             val textWidth = locationPaint.measureText(locationText)
             val maxWidth = outputWidth.toFloat() - frameWidth * 4
             if (textWidth > maxWidth) {
                 locationPaint.textSize = locationPaint.textSize * (maxWidth / textWidth) * 0.95f
+                strokePaint.textSize = locationPaint.textSize
             }
+            canvas.drawText(locationText, centerX, topFrameCenterY + locationPaint.textSize * 0.35f, strokePaint)
             canvas.drawText(locationText, centerX, topFrameCenterY + locationPaint.textSize * 0.35f, locationPaint)
         }
         
@@ -342,7 +351,7 @@ class FrameComposer {
         val bottomStartY = (frameWidth + height).toFloat()
         val centerX = width / 2f
         
-        // 地点信息
+        // 地点信息（显示在照片顶端中央，国家·省份·城市格式）
         photoMetadata?.locationText?.let { locationText ->
             if (locationText.isNotBlank() && frameWidth > 0) {
                 val topFrameCenterY = frameWidth.toFloat() / 2f
@@ -350,11 +359,25 @@ class FrameComposer {
                     color = textColor
                     textSize = frameWidth.toFloat() * 0.35f
                     textAlign = Paint.Align.CENTER
+                    typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                }
+                // 音乐流光模式使用高对比度颜色，其他模式使用描边
+                if (isMusicFlowMode) {
+                    locationPaint.color = getHighContrastTextColor(frameColor)
                 }
                 val textWidth = locationPaint.measureText(locationText)
                 val maxWidth = width.toFloat() - frameWidth * 4
                 if (textWidth > maxWidth) {
                     locationPaint.textSize = locationPaint.textSize * (maxWidth / textWidth) * 0.95f
+                }
+                // 高级徕卡模式和非音乐流光模式添加描边
+                if (!isMusicFlowMode && !isSolidColorMode) {
+                    val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        style = android.graphics.Paint.Style.STROKE
+                        strokeWidth = locationPaint.textSize * 0.08f
+                        color = invertColorForStroke(textColor)
+                    }
+                    canvas.drawText(locationText, centerX, topFrameCenterY + locationPaint.textSize * 0.35f, strokePaint)
                 }
                 canvas.drawText(locationText, centerX, topFrameCenterY + locationPaint.textSize * 0.35f, locationPaint)
             }
