@@ -74,8 +74,8 @@ android {
         variant.outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
             val appName = "AMuPtoFrame"
-            val version = variant.versionName
-            val buildType = variant.buildType.name
+            val version = variant.versionName?.replace(".debug", "") ?: "1.0.36"
+            val buildType = variant.buildType.name.lowercase()
             output.outputFileName = "${appName}-v${version}-${buildType}.apk"
         }
     }

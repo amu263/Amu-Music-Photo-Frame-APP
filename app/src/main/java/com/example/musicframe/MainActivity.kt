@@ -117,6 +117,12 @@ fun musicFrameScreen(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri -> viewModel.onImageSelected(uri) }
     )
+    // 旧版图库选择器，可以保留原始照片的 EXIF 数据（包括 GPS）
+    val pickImageLauncherLegacy = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri -> viewModel.onImageSelected(uri) }
+    )
+    var showLegacyPickerDialog by remember { mutableStateOf(false) }
     val pickFontLauncher = rememberLauncherForActivityResult(OpenDocument()) { uri ->
         viewModel.onFontSelected(uri)
     }
@@ -180,9 +186,7 @@ fun musicFrameScreen(
         imagePickerButton(
             selectedImageUri = state.selectedImageUri,
             onPickImage = {
-                pickImageLauncher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
+                showLegacyPickerDialog = true
             }
         )
         notificationPermissionButton(
@@ -296,6 +300,50 @@ fun musicFrameScreen(
                     chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(chooser)
+            }
+        )
+    }
+
+    // 选择图片方式对话框
+    if (showLegacyPickerDialog) {
+        AlertDialog(
+            onDismissRequest = { showLegacyPickerDialog = false },
+            title = { Text("选择图片") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("请选择图片来源：")
+                    Button(
+                        onClick = {
+                            showLegacyPickerDialog = false
+                            pickImageLauncherLegacy.launch("image/*")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("📷 相册（推荐，可保留 GPS）")
+                    }
+                    Button(
+                        onClick = {
+                            showLegacyPickerDialog = false
+                            pickImageLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("🖼️ 照片选择器（新版）")
+                    }
+                    Text(
+                        text = "提示：相册选择可以保留照片的 GPS 位置信息，照片选择器会清除位置。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showLegacyPickerDialog = false }) {
+                    Text("取消")
+                }
             }
         )
     }

@@ -200,8 +200,26 @@ class FrameComposer {
         canvas.drawText(timeText, centerX, timeY, timePaint)
         
         // 地点信息（显示在照片顶端中央，国家·省份·城市格式）
-        val locationText = config.photoMetadata?.locationText
-        if (!locationText.isNullOrBlank() && frameWidth > 0) {
+    val locationText = config.photoMetadata?.locationText
+    val lat = config.photoMetadata?.latitude
+    val lon = config.photoMetadata?.longitude
+    
+    // 最终显示的地点文字：优先用 locationText，否则用 GPS 坐标
+    val displayLocationText = when {
+        !locationText.isNullOrBlank() -> locationText
+        lat != null && lon != null && !(lat == 0.0 && lon == 0.0) -> {
+            val latDir = if (lat >= 0) "N" else "S"
+            val lonDir = if (lon >= 0) "E" else "W"
+            "GPS: ${String.format("%.2f°$latDir", kotlin.math.abs(lat))}, ${String.format("%.2f°$lonDir", kotlin.math.abs(lon))}"
+        }
+        else -> null
+    }
+    
+    // 调试模式已关闭
+    
+    // 显示地点文字（如果不为空）
+    if (!displayLocationText.isNullOrBlank() && frameWidth > 0) {
+            val locationText = displayLocationText  // 保持变量名兼容
             val topFrameCenterY = frameWidth.toFloat() / 2f
             val locationPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = textColor
@@ -380,6 +398,8 @@ class FrameComposer {
                     canvas.drawText(locationText, centerX, topFrameCenterY + locationPaint.textSize * 0.35f, strokePaint)
                 }
                 canvas.drawText(locationText, centerX, topFrameCenterY + locationPaint.textSize * 0.35f, locationPaint)
+                
+                // 调试信息已关闭
             }
         }
         
