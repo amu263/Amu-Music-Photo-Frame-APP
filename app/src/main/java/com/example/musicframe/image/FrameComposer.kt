@@ -227,20 +227,38 @@ class FrameComposer {
                 textAlign = Paint.Align.CENTER
                 typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
             }
-            // 高级徕卡模式：为地点文字添加对比色描边
-            val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = android.graphics.Paint.Style.STROKE
-                strokeWidth = locationPaint.textSize * 0.08f
-                color = invertColorForStroke(textColor)
+            
+            // 计算文字尺寸以绘制胶囊背景
+            val textBounds = android.graphics.Rect()
+            locationPaint.getTextBounds(locationText, 0, locationText.length, textBounds)
+            val textWidth = textBounds.width().toFloat()
+            val textHeight = textBounds.height().toFloat()
+            
+            // 胶囊背景参数
+            val paddingH = frameWidth.toFloat() * 0.15f  // 水平内边距
+            val paddingV = frameWidth.toFloat() * 0.08f // 垂直内边距
+            val cornerRadius = textHeight * 0.5f + paddingV  // 圆角半径（胶囊状）
+            val bgRect = android.graphics.RectF(
+                centerX - textWidth / 2 - paddingH,
+                topFrameCenterY - textHeight - paddingV,
+                centerX + textWidth / 2 + paddingH,
+                topFrameCenterY + paddingV
+            )
+            
+            // 获取主色深色作为背景色
+            val dominantColor = musicMetadata?.dominantColor ?: 0xFF333333.toInt()
+            val bgColor = darkenColor(dominantColor, 0.7f)
+            
+            // 绘制胶囊背景（带内阴影）
+            val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = bgColor
+                setShadowLayer(paddingV * 0.3f, 0f, paddingV * 0.2f, 0x66000000.toInt())
             }
-            val textWidth = locationPaint.measureText(locationText)
-            val maxWidth = outputWidth.toFloat() - frameWidth * 4
-            if (textWidth > maxWidth) {
-                locationPaint.textSize = locationPaint.textSize * (maxWidth / textWidth) * 0.95f
-                strokePaint.textSize = locationPaint.textSize
-            }
-            canvas.drawText(locationText, centerX, topFrameCenterY + locationPaint.textSize * 0.35f, strokePaint)
-            canvas.drawText(locationText, centerX, topFrameCenterY + locationPaint.textSize * 0.35f, locationPaint)
+            canvas.drawRoundRect(bgRect, cornerRadius, cornerRadius, bgPaint)
+            
+            // 绘制文字
+            val textY = topFrameCenterY - paddingV * 0.3f
+            canvas.drawText(locationText, centerX, textY, locationPaint)
         }
         
         return output
@@ -369,35 +387,60 @@ class FrameComposer {
         val bottomStartY = (frameWidth + height).toFloat()
         val centerX = width / 2f
         
-        // 地点信息（显示在照片顶端中央，国家·省份·城市格式）
+        // 地点信息（显示在照片顶端中央，国家·省份·城市格式，带胶囊背景）
         photoMetadata?.locationText?.let { locationText ->
             if (locationText.isNotBlank() && frameWidth > 0) {
                 val topFrameCenterY = frameWidth.toFloat() / 2f
                 val locationPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    color = textColor
+                    color = 0xFFFFFFFF.toInt() // 白色文字
                     textSize = frameWidth.toFloat() * 0.35f
                     textAlign = Paint.Align.CENTER
                     typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
                 }
-                // 音乐流光模式使用高对比度颜色，其他模式使用描边
-                if (isMusicFlowMode) {
-                    locationPaint.color = getHighContrastTextColor(frameColor)
-                }
-                val textWidth = locationPaint.measureText(locationText)
+                
+                // 计算文字尺寸以绘制胶囊背景
+                val textBounds = android.graphics.Rect()
+                locationPaint.getTextBounds(locationText, 0, locationText.length, textBounds)
+                val textWidthPx = textBounds.width().toFloat()
+                val textHeightPx = textBounds.height().toFloat()
+                
+                // 限制最大宽度
                 val maxWidth = width.toFloat() - frameWidth * 4
-                if (textWidth > maxWidth) {
-                    locationPaint.textSize = locationPaint.textSize * (maxWidth / textWidth) * 0.95f
+                if (textWidthPx > maxWidth) {
+                    locationPaint.textSize = locationPaint.textSize * (maxWidth / textWidthPx) * 0.95f
+                    locationPaint.getTextBounds(locationText, 0, locationText.length, textBounds)
                 }
-                // 高级徕卡模式和非音乐流光模式添加描边
-                if (!isMusicFlowMode && !isSolidColorMode) {
-                    val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                        style = android.graphics.Paint.Style.STROKE
-                        strokeWidth = locationPaint.textSize * 0.08f
-                        color = invertColorForStroke(textColor)
-                    }
-                    canvas.drawText(locationText, centerX, topFrameCenterY + locationPaint.textSize * 0.35f, strokePaint)
+                
+                // 胶囊背景参数
+                val paddingH = frameWidth.toFloat() * 0.12f
+                val paddingV = frameWidth.toFloat() * 0.06f
+                val cornerRadius = (textHeightPx + paddingV * 2) * 0.5f
+                val bgLeft = centerX - textWidthPx / 2 - paddingH
+                val bgTop = topFrameCenterY - textHeightPx - paddingV
+                val bgRight = centerX + textWidthPx / 2 + paddingH
+                val bgBottom = topFrameCenterY + paddingV
+                
+                // 确保背景不超出照片区域（照片在 frameWidth 开始）
+                val photoLeft = frameWidth.toFloat()
+                val photoTop = frameWidth.toFloat()
+                val adjustedBgLeft = maxOf(bgLeft, photoLeft - paddingH)
+                val adjustedBgRight = minOf(bgRight, (width - frameWidth).toFloat() + paddingH)
+                val adjustedBgTop = maxOf(bgTop, photoTop - paddingV)
+                
+                val bgRect = android.graphics.RectF(adjustedBgLeft, adjustedBgTop, adjustedBgRight, bgBottom)
+                
+                // 获取主色深色作为背景色（基于相框颜色）
+                val bgColor = darkenColor(frameColor, 0.6f)
+                
+                // 绘制胶囊背景（带内阴影效果）
+                val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = bgColor
                 }
-                canvas.drawText(locationText, centerX, topFrameCenterY + locationPaint.textSize * 0.35f, locationPaint)
+                canvas.drawRoundRect(bgRect, cornerRadius, cornerRadius, bgPaint)
+                
+                // 绘制文字（垂直居中于胶囊背景）
+                val textY = adjustedBgTop + (bgRect.height() + textHeightPx) / 2 - textBounds.bottom
+                canvas.drawText(locationText, centerX, textY, locationPaint)
                 
                 // 调试信息已关闭
             }
