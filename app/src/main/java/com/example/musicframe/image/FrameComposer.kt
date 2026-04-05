@@ -245,14 +245,17 @@ class FrameComposer {
                 topFrameCenterY + paddingV
             )
             
-            // 获取主色深色作为背景色
+            // 获取主色作为文字颜色，对比色作为背景
             val dominantColor = musicMetadata?.dominantColor ?: 0xFF333333.toInt()
-            val bgColor = darkenColor(dominantColor, 0.7f)
+            val bgColor = invertedColor(dominantColor)  // 对比色作为背景
             
-            // 绘制胶囊背景（带内阴影）
+            // 文字使用主色
+            locationPaint.color = dominantColor
+            
+            // 绘制胶囊背景（带内阴影实现内嵌立体感）
             val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = bgColor
-                setShadowLayer(paddingV * 0.3f, 0f, paddingV * 0.2f, 0x66000000.toInt())
+                setShadowLayer(paddingV * 0.4f, 0f, -paddingV * 0.2f, 0x44000000.toInt())
             }
             canvas.drawRoundRect(bgRect, cornerRadius, cornerRadius, bgPaint)
             
@@ -429,12 +432,17 @@ class FrameComposer {
                 
                 val bgRect = android.graphics.RectF(adjustedBgLeft, adjustedBgTop, adjustedBgRight, bgBottom)
                 
-                // 获取主色深色作为背景色（基于相框颜色）
-                val bgColor = darkenColor(frameColor, 0.6f)
+                // 使用相框颜色的反色作为文字颜色，对比色作为背景
+                val textColor = getHighContrastTextColor(frameColor)
+                val bgColor = frameColor  // 背景使用相框原色
                 
-                // 绘制胶囊背景（带内阴影效果）
+                // 文字使用高对比色
+                locationPaint.color = textColor
+                
+                // 绘制胶囊背景
                 val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = bgColor
+                    setShadowLayer(paddingV * 0.4f, 0f, -paddingV * 0.2f, 0x44000000.toInt())
                 }
                 canvas.drawRoundRect(bgRect, cornerRadius, cornerRadius, bgPaint)
                 
