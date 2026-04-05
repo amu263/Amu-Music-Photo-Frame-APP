@@ -148,7 +148,20 @@ fun musicFrameScreen(
     }
 
     // 检查 NotificationListenerService 是否已启用
-    val notificationListenerEnabled = isNotificationListenerEnabled(context)
+    var notificationListenerEnabled by remember { mutableStateOf(false) }
+
+    // 权限状态变化时重新检查
+    LaunchedEffect(Unit) {
+        notificationListenerEnabled = isNotificationListenerEnabled(context)
+    }
+
+    // 监听权限变化，定期检查
+    LaunchedEffect(state.musicMetadata) {
+        while (true) {
+            kotlinx.coroutines.delay(2000)
+            notificationListenerEnabled = isNotificationListenerEnabled(context)
+        }
+    }
 
     val scrollState = rememberScrollState()
     val shareRequest = state.pendingShareRequest
@@ -191,7 +204,16 @@ fun musicFrameScreen(
         )
         notificationPermissionButton(
             isEnabled = notificationListenerEnabled,
-            onClick = { showNotificationDialog = true }
+            onClick = {
+                // 点击时重新检查权限状态
+                notificationListenerEnabled = isNotificationListenerEnabled(context)
+                if (notificationListenerEnabled) {
+                    // 如果已开启，显示提示
+                    Toast.makeText(context, "正在播放权限已开启", Toast.LENGTH_SHORT).show()
+                } else {
+                    showNotificationDialog = true
+                }
+            }
         )
         fontPickerRow(
             customFontName = state.customFontName,
@@ -593,9 +615,8 @@ private fun logContentDialog(
 }
 
 /**
- * 检查 NotificationListenerService 是否已启用
+ * 检查 NotificationListenerService 是否是否已启用
  */
-@Composable
 private fun isNotificationListenerEnabled(context: Context): Boolean {
     val packageName = context.packageName
     val flat = Settings.Secure.getString(
