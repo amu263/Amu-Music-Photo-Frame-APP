@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "com.example.musicframe"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.musicframe"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 36
         versionName = "1.0.36"
 
@@ -104,6 +104,9 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.google.accompanist:accompanist-permissions:0.36.0")
+    
+    // SaltUI - 清新简洁的 Compose UI 组件库
+    implementation("io.github.moriafly:salt-ui-android:2.8.1")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
