@@ -444,6 +444,7 @@ fun musicFrameScreen(
             onFontClick = {
                 pickFontLauncher.launch(arrayOf("font/ttf", "application/x-font-ttf", "application/octet-stream"))
             },
+            onResetFontClick = { viewModel.useDefaultFont() },
             hasCustomFont = state.customFontName != null
         )
 
@@ -726,6 +727,7 @@ private fun quickActionsRow(
     permissionCheckResult: NotificationPermissionManager.PermissionCheckResult,
     onPermissionClick: () -> Unit,
     onFontClick: () -> Unit,
+    onResetFontClick: () -> Unit,
     hasCustomFont: Boolean
 ) {
     Row(
@@ -758,6 +760,17 @@ private fun quickActionsRow(
             onClick = onFontClick,
             modifier = Modifier.weight(1f)
         )
+        
+        // 还原默认字体按钮（仅当有自定义字体时显示）
+        if (hasCustomFont) {
+            ActionChip(
+                icon = Icons.Default.Refresh,
+                label = "还原",
+                isActive = false,
+                onClick = onResetFontClick,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 

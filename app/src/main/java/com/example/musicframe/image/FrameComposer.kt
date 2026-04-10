@@ -6,6 +6,7 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
+import android.graphics.Typeface
 import android.util.Log
 import com.example.musicframe.domain.model.FrameColorMode
 import com.example.musicframe.model.HeadphoneInfo
@@ -14,6 +15,63 @@ import kotlin.math.max
 import kotlin.math.min
 
 class FrameComposer {
+
+    /**
+     * 获取实际使用的 Typeface，如果配置了自定义字体则使用，否则使用默认字体
+     */
+    private fun getTypeface(config: FrameConfig?, style: Int = Typeface.NORMAL): Typeface {
+        return config?.typeface ?: Typeface.DEFAULT
+    }
+
+    /**
+     * 获取粗体 Typeface
+     */
+    private fun getBoldTypeface(config: FrameConfig?): Typeface {
+        val base = config?.typeface
+        return if (base != null) {
+            Typeface.create(base, Typeface.BOLD)
+        } else {
+            Typeface.DEFAULT_BOLD
+        }
+    }
+
+    /**
+     * 获取斜体 Typeface
+     */
+    private fun getItalicTypeface(config: FrameConfig?): Typeface {
+        val base = config?.typeface
+        return if (base != null) {
+            Typeface.create(base, Typeface.ITALIC)
+        } else {
+            Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+        }
+    }
+
+    /**
+     * 获取粗斜体 Typeface
+     */
+    private fun getBoldItalicTypeface(config: FrameConfig?): Typeface {
+        val base = config?.typeface
+        return if (base != null) {
+            Typeface.create(base, Typeface.BOLD_ITALIC)
+        } else {
+            Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC)
+        }
+    }
+
+    /**
+     * 获取 MONOSPACE 风格的 Typeface（用于播放器名称）
+     */
+    private fun getMonoTypeface(config: FrameConfig?, style: Int = Typeface.NORMAL): Typeface {
+        val base = config?.typeface
+        return if (base != null) {
+            // 如果有自定义字体，在其基础上应用 style
+            Typeface.create(base, style)
+        } else {
+            // 没有自定义字体时使用系统 MONOSPACE
+            Typeface.create(Typeface.MONOSPACE, style)
+        }
+    }
 
     fun compose(
         source: Bitmap,
@@ -132,7 +190,7 @@ class FrameComposer {
             color = textColor
             textSize = separatorHeight * 0.9f
             textAlign = Paint.Align.LEFT
-            typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+            typeface = getMonoTypeface(config, Typeface.BOLD)
         }
         
         val playerText = renderParams.musicLines.getOrElse(1) { "" }
@@ -225,7 +283,7 @@ class FrameComposer {
                 color = textColor
                 textSize = frameWidth.toFloat() * 0.35f
                 textAlign = Paint.Align.CENTER
-                typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                typeface = getBoldTypeface(config)
             }
             
             // 计算文字尺寸以绘制胶囊背景
@@ -398,7 +456,7 @@ class FrameComposer {
                     color = 0xFFFFFFFF.toInt() // 白色文字
                     textSize = frameWidth.toFloat() * 0.35f
                     textAlign = Paint.Align.CENTER
-                    typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                    typeface = getBoldTypeface(config)
                 }
                 
                 // 计算文字尺寸以绘制胶囊背景
@@ -464,9 +522,9 @@ class FrameComposer {
             textSize = frameHeight * 0.14f
             textAlign = Paint.Align.CENTER
             typeface = if (isMusicFlowMode) {
-                android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.ITALIC)
+                getItalicTypeface(config)
             } else {
-                android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                getBoldTypeface(config)
             }
         }
         val firstRowY = bottomStartY + frameHeight * 0.18f
@@ -510,9 +568,9 @@ class FrameComposer {
             textSize = separatorHeight * 0.9f
             textAlign = Paint.Align.LEFT
             typeface = if (isMusicFlowMode) {
-                android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.ITALIC)
+                getMonoTypeface(config, Typeface.ITALIC)
             } else {
-                android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+                getMonoTypeface(config, Typeface.BOLD)
             }
         }
         
@@ -591,9 +649,9 @@ class FrameComposer {
                 textSize = separatorHeight * 0.7f
                 textAlign = Paint.Align.CENTER
                 typeface = if (isMusicFlowMode) {
-                    android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.ITALIC)
+                    getItalicTypeface(config)
                 } else {
-                    android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                    getBoldTypeface(config)
                 }
             }
             // 高级徕卡模式：为相机参数文字添加对比色描边
@@ -626,9 +684,9 @@ class FrameComposer {
             textSize = separatorHeight * 0.7f
             textAlign = Paint.Align.CENTER
             typeface = if (isMusicFlowMode) {
-                android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.ITALIC)
+                getItalicTypeface(config)
             } else {
-                android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                getBoldTypeface(config)
             }
         }
         val timeY = infoY + separatorHeight * 1.2f
