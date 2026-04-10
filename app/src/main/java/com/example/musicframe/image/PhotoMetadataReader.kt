@@ -6,6 +6,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
+import java.io.InputStream
 
 class PhotoMetadataReader(private val context: Context) {
 
@@ -21,11 +22,18 @@ class PhotoMetadataReader(private val context: Context) {
     fun read(uri: Uri): PhotoMetadata {
             android.util.Log.d("PhotoMetadata", "read: 被调用了，URI = $uri")
         return try {
+            // 检测实况照片（需要读取文件内容）
+            val motionPhotoInfo = detectMotionPhoto(uri)
+            logDebug("read: 实况照片检测结果: isMotionPhoto=${motionPhotoInfo.first}, offset=${motionPhotoInfo.second}")
+            
             // 方法1（推荐）：直接从 MediaStore 读取 GPS 坐标，最可靠
             val mediaStoreResult = readFromMediaStore(uri)
             if (mediaStoreResult.latitude != null || mediaStoreResult.longitude != null) {
                 logDebug("read: 从MediaStore获取到GPS: ${mediaStoreResult.latitude}, ${mediaStoreResult.longitude}")
-                return mediaStoreResult
+                return mediaStoreResult.copy(
+                    isMotionPhoto = motionPhotoInfo.first,
+                    motionVideoOffset = motionPhotoInfo.second
+                )
             }
             
             // 方法2：回退到通过文件路径读取 EXIF
@@ -40,7 +48,10 @@ class PhotoMetadataReader(private val context: Context) {
                     logDebug("read: readFromExif结果: lat=${result.latitude}, lon=${result.longitude}, loc=${result.locationText}")
                     if (result.latitude != null || result.longitude != null) {
                         logDebug("read: 从EXIF获取到GPS: ${result.latitude}, ${result.longitude}")
-                        return result
+                        return result.copy(
+                            isMotionPhoto = motionPhotoInfo.first,
+                            motionVideoOffset = motionPhotoInfo.second
+                        )
                     }
                 }
             }
@@ -48,11 +59,211 @@ class PhotoMetadataReader(private val context: Context) {
             // 方法3：从 URI 读取 EXIF（创建临时文件）
             val uriResult = readFromUri(uri)
             logDebug("read: readFromUri结果: lat=${uriResult.latitude}, lon=${uriResult.longitude}, loc=${uriResult.locationText}")
-            return uriResult
+            return uriResult.copy(
+                isMotionPhoto = motionPhotoInfo.first,
+                motionVideoOffset = motionPhotoInfo.second
+            )
         } catch (e: Exception) {
             logDebug("read: 异常 = ${e.message}")
             PhotoMetadata(null, null, null, null, null, false, null, null)
         }
+    }
+
+    /**
+     * 检测是否为实况照片，并返回视频偏移量
+     * @return Pair(isMotionPhoto, videoOffset)
+     */
+    private fun detectMotionPhoto(uri: Uri): Pair<Boolean, Long?> {
+        return try {
+            val inputStream: InputStream = context.contentResolver.openInputStream(uri) ?: return Pair(false, null)
+            inputStream.use { stream ->
+                // 读取文件头部的 JPEG 数据
+                val jpegData = stream.readBytes()
+                
+                // 方法1: 检测 Samsung/Motion Photo 格式
+                // Samsung 实况照片在 JPEG 结束后有 MP4 视频，前面有特定的标记
+                val samsungOffset = findSamsungMotionPhotoOffset(jpegData)
+                if (samsungOffset != null) {
+                    logDebug("detectMotionPhoto: 检测到 Samsung 实况照片, offset=$samsungOffset")
+                    return Pair(true, samsungOffset)
+                }
+                
+                // 方法2: 检测 Google Photos Motion Photo (Heif container)
+                // Google Photos 的实况照片通常是 HEIF 格式
+                val googleOffset = findGoogleMotionPhotoOffset(jpegData)
+                if (googleOffset != null) {
+                    logDebug("detectMotionPhoto: 检测到 Google Photos 实况照片, offset=$googleOffset")
+                    return Pair(true, googleOffset)
+                }
+                
+                // 方法3: 检测 iOS Live Photos (MOV in JPEG)
+                val iosOffset = findIOSLivePhotoOffset(jpegData)
+                if (iosOffset != null) {
+                    logDebug("detectMotionPhoto: 检测到 iOS Live Photos, offset=$iosOffset")
+                    return Pair(true, iosOffset)
+                }
+                
+                // 方法4: 通用 Motion Photo 标记检测
+                val genericOffset = findGenericMotionPhotoOffset(jpegData)
+                if (genericOffset != null) {
+                    logDebug("detectMotionPhoto: 检测到通用实况照片, offset=$genericOffset")
+                    return Pair(true, genericOffset)
+                }
+                
+                Pair(false, null)
+            }
+        } catch (e: Exception) {
+            logDebug("detectMotionPhoto: 检测异常 = ${e.message}")
+            Pair(false, null)
+        }
+    }
+
+    /**
+     * 查找 Samsung Motion Photo 的视频偏移量
+     * Samsung 使用 ftyp 标记来标识嵌入的 MP4 视频
+     */
+    private fun findSamsungMotionPhotoOffset(jpegData: ByteArray): Long? {
+        // Samsung: 在 JPEG EOI (0xFF 0xD9) 后紧跟 ftyp atom
+        val eoiMarker = byteArrayOf(0xFF.toByte(), 0xD9.toByte())
+        val ftypMarker = "ftyp".toByteArray()
+        
+        var eoiIndex = -1
+        for (i in 0 until jpegData.size - 1) {
+            if (jpegData[i] == eoiMarker[0] && jpegData[i + 1] == eoiMarker[1]) {
+                eoiIndex = i
+                break
+            }
+        }
+        
+        if (eoiIndex == -1) return null
+        
+        // 在 EOI 后查找 ftyp
+        for (i in eoiIndex + 2 until jpegData.size - 4) {
+            var found = true
+            for (j in 0 until 4) {
+                if (jpegData[i + j] != ftypMarker[j]) {
+                    found = false
+                    break
+                }
+            }
+            if (found) {
+                return (i - 2).toLong() // 返回 EOI 位置作为偏移量
+            }
+        }
+        
+        return null
+    }
+
+    /**
+     * 查找 Google Photos Motion Photo 的偏移量
+     * Google 使用不同的容器结构
+     */
+    private fun findGoogleMotionPhotoOffset(jpegData: ByteArray): Long? {
+        // Google Motion Photo 通常有 MicroVideo 标记
+        // 或者检查是否有 ftyp 在文件中间
+        
+        // 查找文件中第二个 ftyp 位置（第一个是视频容器头，第二个可能是嵌入的）
+        val ftypMarker = "ftyp".toByteArray()
+        var firstFtyp = -1
+        var secondFtyp = -1
+        
+        for (i in 0 until jpegData.size - 4) {
+            var found = true
+            for (j in 0 until 4) {
+                if (jpegData[i + j] != ftypMarker[j]) {
+                    found = false
+                    break
+                }
+            }
+            if (found) {
+                if (firstFtyp == -1) {
+                    firstFtyp = i
+                } else {
+                    secondFtyp = i
+                    break
+                }
+            }
+        }
+        
+        // 如果找到两个 ftyp，可能是 Motion Photo
+        if (firstFtyp > 0 && secondFtyp > firstFtyp) {
+            // 返回第一个 ftyp 位置
+            return firstFtyp.toLong()
+        }
+        
+        return null
+    }
+
+    /**
+     * 查找 iOS Live Photos 的偏移量
+     * iOS 使用 mov 格式
+     */
+    private fun findIOSLivePhotoOffset(jpegData: ByteArray): Long? {
+        // iOS Live Photos 可能在 JPEG 后有 mov 数据
+        // mov 数据通常以 moov atom 开头
+        val moovMarker = "moov".toByteArray()
+        val mdatMarker = "mdat".toByteArray()
+        
+        // 查找 moov 或 mdat
+        for (i in 10 until jpegData.size - 4) {
+            var foundMoov = true
+            var foundMdat = true
+            for (j in 0 until 4) {
+                if (jpegData[i + j] != moovMarker[j]) foundMoov = false
+                if (jpegData[i + j] != mdatMarker[j]) foundMdat = false
+            }
+            if (foundMoov || foundMdat) {
+                // 检查前面是否是 size 字段（atom 结构）
+                if (i >= 4) {
+                    return (i - 4).toLong()
+                }
+            }
+        }
+        
+        return null
+    }
+
+    /**
+     * 通用 Motion Photo 检测
+     */
+    private fun findGenericMotionPhotoOffset(jpegData: ByteArray): Long? {
+        // 查找文件末尾附近的 ftyp 或 moov 标记
+        // Motion Photo 的视频部分通常在 JPEG 数据之后
+        
+        val markers = listOf(
+            "ftyp".toByteArray(),
+            "moov".toByteArray()
+        )
+        
+        // 从文件末尾开始搜索，JPEG 结束标记是 0xFF 0xD9
+        val eoiMarker = byteArrayOf(0xFF.toByte(), 0xD9.toByte())
+        var lastEoi = -1
+        
+        for (i in 0 until jpegData.size - 1) {
+            if (jpegData[i] == eoiMarker[0] && jpegData[i + 1] == eoiMarker[1]) {
+                lastEoi = i
+            }
+        }
+        
+        if (lastEoi == -1) return null
+        
+        // 在 EOI 之后查找视频数据
+        for (marker in markers) {
+            for (i in lastEoi + 2 until jpegData.size - 4) {
+                var found = true
+                for (j in 0 until 4) {
+                    if (jpegData[i + j] != marker[j]) {
+                        found = false
+                        break
+                    }
+                }
+                if (found) {
+                    return (i - 4).toLong() // 返回 atom size 前的位置
+                }
+            }
+        }
+        
+        return null
     }
 
     /**
