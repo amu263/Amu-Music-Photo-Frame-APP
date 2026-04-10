@@ -318,6 +318,28 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    /**
+     * 导出带水印的动态相框（视频每一帧都带相框水印）
+     */
+    fun exportMotionPhotoWithVideoWatermark() {
+        val state = _uiState.value
+        val bitmap = state.framedBitmap ?: return
+        val motionOffset = state.photoMetadata?.motionVideoOffset ?: return
+        val sourceUri = state.selectedImageUri ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isExporting = true, message = null) }
+            runCatching {
+                exporter.exportMotionPhotoWithVideoWatermark(bitmap, MotionPhotoInfo(sourceUri, motionOffset))
+            }.onSuccess { uri ->
+                _uiState.update { state ->
+                    state.copy(isExporting = false, message = "已导出动态相框（视频水印版）", pendingShareRequest = ShareRequest(uri, ImageExporter.Format.JPEG.mimeType))
+                }
+            }.onFailure { error ->
+                _uiState.update { state -> state.copy(isExporting = false, message = "动态相框导出失败: ${error.localizedMessage}") }
+            }
+        }
+    }
+
     fun onExportFormatSelected(format: ImageExporter.Format) {
         _uiState.update { it.copy(exportFormat = format) }
     }

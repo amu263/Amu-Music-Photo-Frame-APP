@@ -501,7 +501,8 @@ fun musicFrameScreen(
                 showLogDialog = true
             },
             onMotionPhotoExport = state.photoMetadata?.isMotionPhoto == true,
-            onExportMotionPhoto = { viewModel.exportMotionPhoto() }
+            onExportMotionPhoto = { viewModel.exportMotionPhoto() },
+            onExportMotionPhotoWithWatermark = { viewModel.exportMotionPhotoWithVideoWatermark() }
         )
 
         state.message?.let { message ->
@@ -887,7 +888,8 @@ private fun exportButtonsRow(
 private fun bottomToolsRow(
     onLogClick: () -> Unit,
     onMotionPhotoExport: Boolean,
-    onExportMotionPhoto: () -> Unit
+    onExportMotionPhoto: () -> Unit,
+    onExportMotionPhotoWithWatermark: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -900,6 +902,9 @@ private fun bottomToolsRow(
         if (onMotionPhotoExport) {
             TextButton(onClick = onExportMotionPhoto) {
                 Text("实况", style = MaterialTheme.typography.labelSmall)
+            }
+            TextButton(onClick = onExportMotionPhotoWithWatermark) {
+                Text("动态", style = MaterialTheme.typography.labelSmall)
             }
         }
     }

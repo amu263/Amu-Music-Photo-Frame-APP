@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,6 +16,10 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 
 class ImageExporter(private val context: Context) {
+
+    companion object {
+        private const val TAG = "ImageExporter"
+    }
 
     suspend fun export(
         bitmap: Bitmap,
@@ -48,6 +53,31 @@ class ImageExporter(private val context: Context) {
 
     // In file: app/src/main/java/com/example/musicframe/export/ImageExporter.kt
 
+    /**
+     * 导出带水印的动态相框
+     * 使用 MediaCodec 重新编码视频，让视频每一帧都带有相框水印
+     */
+    suspend fun exportMotionPhotoWithVideoWatermark(
+        framed: Bitmap,
+        motionInfo: MotionPhotoInfo,
+        fileName: String = defaultFileName()
+    ): Uri = withContext(Dispatchers.IO) {
+        Log.d(TAG, "exportMotionPhotoWithVideoWatermark: 开始处理")
+
+        val processor = MotionPhotoProcessor(context)
+        val outputFile = processor.processMotionPhoto(
+            sourceUri = motionInfo.sourceUri,
+            videoOffset = motionInfo.videoOffset,
+            framedBitmap = framed,
+            outputFileName = fileName
+        )
+
+        writeFileToMediaStore(outputFile, "$fileName.jpg", Format.JPEG.mimeType)
+    }
+
+    /**
+     * 导出动态相框（简单版本 - 仅替换预览图，视频保持原样）
+     */
     suspend fun exportMotionPhoto(
         framed: Bitmap,
         motionInfo: MotionPhotoInfo,
