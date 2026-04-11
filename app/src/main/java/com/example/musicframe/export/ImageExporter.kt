@@ -120,13 +120,21 @@ class ImageExporter(private val context: Context) {
         val resolver = context.contentResolver
         val input = resolver.openInputStream(info.sourceUri) ?: error("无法读取实况视频片段")
         input.use { stream ->
-            var remaining = info.videoOffset
-            while (remaining > 0) {
-                val skipped = stream.skip(remaining)
-                if (skipped <= 0) break
-                remaining -= skipped
+            Log.d(TAG, "extractMotionVideo: 开始提取视频，从偏移量 ${info.videoOffset}")
+            
+            // 使用 ByteArrayInputStream 的 mark/reset 来确保正确跳过
+            val fullData = stream.readBytes()
+            Log.d(TAG, "extractMotionVideo: 文件总大小: ${fullData.size}")
+            
+            if (info.videoOffset >= fullData.size) {
+                Log.e(TAG, "extractMotionVideo: videoOffset ${info.videoOffset} 超出文件大小 ${fullData.size}")
+                error("视频偏移量超出文件大小")
             }
-            return stream.readBytes()
+            
+            val videoData = fullData.copyOfRange(info.videoOffset.toInt(), fullData.size)
+            Log.d(TAG, "extractMotionVideo: 提取到 ${videoData.size} 字节视频数据")
+            
+            return videoData
         }
     }
 
