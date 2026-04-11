@@ -43,6 +43,16 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
     private val photoMetadataReader = PhotoMetadataReader(application)
     private val exporter = ImageExporter(application)
     private val prefs = application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    
+    // 默认字体：使用 qiji-combo.ttf
+    private val defaultTypeface: Typeface by lazy {
+        try {
+            Typeface.createFromAsset(application.assets, "fonts/qiji-combo.ttf")
+        } catch (e: Exception) {
+            android.util.Log.w("MusicFrame", "无法加载默认字体 qiji-combo.ttf，使用系统默认字体", e)
+            Typeface.DEFAULT
+        }
+    }
 
     private val _uiState = MutableStateFlow(MusicFrameUiState())
     val uiState: StateFlow<MusicFrameUiState> = _uiState.asStateFlow()
@@ -226,7 +236,8 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun useDefaultFont() {
-        _uiState.update { it.copy(customTypeface = null, customFontName = null, customFontPath = null) }
+        // "还原默认字体"是指还原到内置的 qiji-combo.ttf，而不是系统的默认字体
+        _uiState.update { it.copy(customTypeface = defaultTypeface, customFontName = "qiji-combo", customFontPath = null) }
         prefs.edit().remove(KEY_FONT_PATH).apply()
         rebuildFrame()
     }
@@ -334,13 +345,15 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch(Dispatchers.Default) {
             val state = _uiState.value
             val source = state.originalBitmap ?: return@launch
+            // 如果没有自定义字体，使用默认的 qiji-combo.ttf 字体
+            val typefaceToUse = state.customTypeface ?: defaultTypeface
             val config = FrameConfig(
                 frameMode = state.frameMode,
                 frameColorMode = state.frameColorMode,
                 customFrameColorHex = state.customFrameColorHex,
                 showHeadphoneInfo = state.showHeadphoneInfo,
                 headphoneTextColor = state.userHeadphoneTextColor,
-                typeface = state.customTypeface,
+                typeface = typefaceToUse,
                 photoMetadata = state.photoMetadata,
                 useDarkBackground = state.useDarkBackground
             )

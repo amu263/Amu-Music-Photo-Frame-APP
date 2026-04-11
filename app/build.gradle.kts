@@ -23,11 +23,8 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = file("${rootDir}/release-key.jks")
-            storePassword = System.getenv("RELEASE_STORE_PASSWORD") ?: "amumusic123"
-            keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: "release"
-            keyPassword = System.getenv("RELEASE_KEY_PASSWORD") ?: "amumusic123"
+        getByName("debug") {
+            // 使用 debug 签名构建 release
         }
     }
 
@@ -37,7 +34,8 @@ android {
             versionNameSuffix = ".debug"
         }
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // 使用 debug 签名构建 release（临时方案）
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
