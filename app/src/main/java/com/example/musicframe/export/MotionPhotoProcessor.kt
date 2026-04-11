@@ -72,12 +72,28 @@ class MotionPhotoProcessor(private val context: Context) {
      * 从 Motion Photo 中提取视频片段
      */
     private fun extractVideoSegment(sourceUri: android.net.Uri, videoOffset: Long, outputFile: File) {
-        context.contentResolver.openInputStream(sourceUri)?.use { input ->
-            val skipped = input.skip(videoOffset)
-            Log.d(TAG, "跳过 $skipped 字节")
-            FileOutputStream(outputFile).use { output ->
-                input.copyTo(output)
-            }
+        try {
+            context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                // 读取全部数据
+                val fullData = input.readBytes()
+                Log.d(TAG, "extractVideoSegment: 文件总大小: ${fullData.size}")
+                
+                if (videoOffset >= fullData.size) {
+                    Log.e(TAG, "extractVideoSegment: videoOffset $videoOffset 超出文件大小 ${fullData.size}")
+                    error("视频偏移量超出文件大小")
+                }
+                
+                // 从 videoOffset 开始提取视频数据
+                val videoData = fullData.copyOfRange(videoOffset.toInt(), fullData.size)
+                Log.d(TAG, "extractVideoSegment: 提取 ${videoData.size} 字节视频数据")
+                
+                FileOutputStream(outputFile).use { output ->
+                    output.write(videoData)
+                }
+            } ?: error("无法打开输入流")
+        } catch (e: Exception) {
+            Log.e(TAG, "extractVideoSegment: 提取失败: ${e.message}", e)
+            error("提取视频失败: ${e.message}")
         }
         Log.d(TAG, "视频片段提取完成: ${outputFile.absolutePath}, 大小: ${outputFile.length()} bytes")
     }

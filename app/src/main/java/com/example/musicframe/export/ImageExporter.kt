@@ -96,21 +96,27 @@ class ImageExporter(private val context: Context) {
         
         if (videoBytes.isEmpty()) {
             Log.e(TAG, "exportMotionPhoto: 视频提取失败，返回静态图片")
-            // 如果视频提取失败，至少返回带水印的静态图片
             return@withContext writeFileToMediaStoreFromBitmap(framed, "$fileName-static.jpg")
         }
         
-        // 检查视频数据是否有效 (以 ftyp 或 moov 开头)
-        val isValidVideo = videoBytes.size > 12 && (
+        // 检查视频数据是否有效 - MP4 视频以 ftyp 或 free 或 moov 开头
+        // 或者直接以视频数据开头
+        val isValidVideo = videoBytes.size > 100 && (
             String(videoBytes.copyOfRange(4, 8)) == "ftyp" ||
             String(videoBytes.copyOfRange(4, 8)) == "moov" ||
             String(videoBytes.copyOfRange(0, 4)) == "ftyp" ||
-            String(videoBytes.copyOfRange(0, 4)) == "moov"
+            String(videoBytes.copyOfRange(0, 4)) == "moov" ||
+            String(videoBytes.copyOfRange(0, 4)) == "free" ||
+            String(videoBytes.copyOfRange(0, 4)) == "mdat"
         )
+        Log.d(TAG, "exportMotionPhoto: 视频数据有效检查: size=${videoBytes.size}, header=${String(videoBytes.copyOfRange(0, minOf(8, videoBytes.size)))}")
         Log.d(TAG, "exportMotionPhoto: 视频数据有效: $isValidVideo")
         
         if (!isValidVideo) {
-            Log.e(TAG, "exportMotionPhoto: 视频数据无效，返回静态图片")
+            Log.e(TAG, "exportMotionPhoto: 视频数据无效，可能偏移量计算错误或格式不支持")
+            // 打印前20字节的16进制用于调试
+            val hexDebug = videoBytes.take(20).joinToString(" ") { String.format("%02X", it) }
+            Log.d(TAG, "exportMotionPhoto: 视频数据前20字节hex: $hexDebug")
             return@withContext writeFileToMediaStoreFromBitmap(framed, "$fileName-static.jpg")
         }
 
