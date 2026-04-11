@@ -83,31 +83,71 @@ class ImageExporter(private val context: Context) {
         motionInfo: MotionPhotoInfo,
         fileName: String = defaultFileName()
     ): Uri = withContext(Dispatchers.IO) {
+        Log.d(TAG, "exportMotionPhoto: 开始导出, videoOffset=${motionInfo.videoOffset}")
+        
         val framedBytes = ByteArrayOutputStream().use { output ->
             framed.compress(Format.JPEG.compressFormat, Format.JPEG.quality, output)
             output.toByteArray()
         }
+        Log.d(TAG, "exportMotionPhoto: 带水印图片大小: ${framedBytes.size} bytes")
 
         val videoBytes = extractMotionVideo(motionInfo)
+        Log.d(TAG, "exportMotionPhoto: 提取视频大小: ${videoBytes.size} bytes")
+        
+        if (videoBytes.isEmpty()) {
+            Log.e(TAG, "exportMotionPhoto: 视频提取失败，返回静态图片")
+            // 如果视频提取失败，至少返回带水印的静态图片
+            return@withContext writeFileToMediaStoreFromBitmap(framed, "$fileName-static.jpg")
+        }
+        
+        // 检查视频数据是否有效 (以 ftyp 或 moov 开头)
+        val isValidVideo = videoBytes.size > 12 && (
+            String(videoBytes.copyOfRange(4, 8)) == "ftyp" ||
+            String(videoBytes.copyOfRange(4, 8)) == "moov" ||
+            String(videoBytes.copyOfRange(0, 4)) == "ftyp" ||
+            String(videoBytes.copyOfRange(0, 4)) == "moov"
+        )
+        Log.d(TAG, "exportMotionPhoto: 视频数据有效: $isValidVideo")
+        
+        if (!isValidVideo) {
+            Log.e(TAG, "exportMotionPhoto: 视频数据无效，返回静态图片")
+            return@withContext writeFileToMediaStoreFromBitmap(framed, "$fileName-static.jpg")
+        }
+
         val tempFile = File(context.cacheDir, "$fileName-motion.jpg")
         FileOutputStream(tempFile).use { output ->
             output.write(framedBytes)
             output.write(videoBytes)
         }
-
-        // ... (代码前略)
-        val exif = ExifInterface(tempFile)
-
-// 修复：移除对不存在的 TAG_MOTION_PHOTO 的引用。
-// ExifInterface 库没有一个标准的标签来标记实况照片。
-// 这个功能通常需要一个更复杂的XMP库来实现，以便写入 Google Photos 等应用能够识别的元数据。
-// 为了让项目能够编译通过，我们暂时移除这一行。
-// exif.setAttribute("MicroVideo", "1") // 这是一个可能的、但不标准的尝试
-
-        exif.saveAttributes()
+        Log.d(TAG, "exportMotionPhoto: 组装文件大小: ${tempFile.length()} bytes")
 
         writeFileToMediaStore(tempFile, "$fileName.jpg", Format.JPEG.mimeType)
-// ... (代码后略)
+    }
+
+    private fun writeFileToMediaStoreFromBitmap(bitmap: Bitmap, displayName: String): Uri {
+        val resolver = context.contentResolver
+        val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        } else {
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        }
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+        }
+        val uri = resolver.insert(collection, values) ?: error("无法创建图片文件")
+        resolver.openOutputStream(uri)?.use { stream ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            values.clear()
+            values.put(MediaStore.Images.Media.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+        }
+        return uri
     }
 
     private fun writeBitmap(bitmap: Bitmap, stream: OutputStream?, format: Format) {

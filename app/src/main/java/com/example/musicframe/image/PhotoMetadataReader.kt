@@ -134,7 +134,7 @@ class PhotoMetadataReader(private val context: Context) {
     /**
      * 查找 Google Camera MicroVideoOffset
      * Google Camera (包括 Samsung GCam) 使用 XMP 中的 MicroVideoOffset 标签
-     * 注意：MicroVideoOffset 是从文件末尾计算的偏移量
+     * 注意：MicroVideoOffset 是从文件末尾计算的偏移量（视频长度）
      */
     private fun findMicroVideoOffset(data: ByteArray): Long? {
         // 在 XMP 元数据中查找 MicroVideoOffset
@@ -160,12 +160,23 @@ class PhotoMetadataReader(private val context: Context) {
                 val regex = """MicroVideoOffset\s*[=>]\s*["']?([\d]+)["']?""".toRegex()
                 val match = regex.find(xmpString)
                 if (match != null) {
-                    val videoSize = match.groupValues[1].toLongOrNull()
-                    if (videoSize != null && videoSize > 0) {
-                        // MicroVideoOffset 是从文件末尾计算的，所以视频开始位置 = 文件大小 - videoSize
-                        val videoOffset = data.size - videoSize
-                        logDebug("findMicroVideoOffset: 找到 MicroVideoOffset=$videoSize, 计算视频位置=$videoOffset")
-                        return videoOffset
+                    val microVideoOffset = match.groupValues[1].toLongOrNull()
+                    if (microVideoOffset != null && microVideoOffset > 0) {
+                        // MicroVideoOffset 的含义：
+                        // 1. 如果值很大(>文件大小的一半)，通常是视频长度，视频从 (文件大小 - 这个值) 开始
+                        // 2. 如果值较小，通常是直接的偏移量
+                        
+                        // 检查是否是视频长度模式
+                        if (microVideoOffset < data.size && microVideoOffset > data.size / 2) {
+                            // 这看起来是视频长度
+                            val videoOffset = data.size - microVideoOffset
+                            logDebug("findMicroVideoOffset: MicroVideoOffset=$microVideoOffset (视频长度模式), 视频开始位置=$videoOffset")
+                            return videoOffset
+                        } else if (microVideoOffset < data.size) {
+                            // 这看起来是直接偏移量
+                            logDebug("findMicroVideoOffset: MicroVideoOffset=$microVideoOffset (直接偏移量模式)")
+                            return microVideoOffset
+                        }
                     }
                 }
             }
