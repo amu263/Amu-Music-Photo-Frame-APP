@@ -85,12 +85,7 @@ class ImageExporter(private val context: Context) {
     ): Uri = withContext(Dispatchers.IO) {
         Log.d(TAG, "exportMotionPhoto: 开始导出, videoOffset=${motionInfo.videoOffset}")
         
-        val framedBytes = ByteArrayOutputStream().use { output ->
-            framed.compress(Format.JPEG.compressFormat, Format.JPEG.quality, output)
-            output.toByteArray()
-        }
-        Log.d(TAG, "exportMotionPhoto: 带水印图片大小: ${framedBytes.size} bytes")
-
+        // 提取视频数据
         val videoBytes = extractMotionVideo(motionInfo)
         Log.d(TAG, "exportMotionPhoto: 提取视频大小: ${videoBytes.size} bytes")
         
@@ -99,8 +94,7 @@ class ImageExporter(private val context: Context) {
             return@withContext writeFileToMediaStoreFromBitmap(framed, "$fileName-static.jpg")
         }
         
-        // 检查视频数据是否有效 - MP4 视频以 ftyp 或 free 或 moov 开头
-        // 或者直接以视频数据开头
+        // 检查视频数据是否有效
         val isValidVideo = videoBytes.size > 100 && (
             String(videoBytes.copyOfRange(4, 8)) == "ftyp" ||
             String(videoBytes.copyOfRange(4, 8)) == "moov" ||
@@ -109,25 +103,105 @@ class ImageExporter(private val context: Context) {
             String(videoBytes.copyOfRange(0, 4)) == "free" ||
             String(videoBytes.copyOfRange(0, 4)) == "mdat"
         )
-        Log.d(TAG, "exportMotionPhoto: 视频数据有效检查: size=${videoBytes.size}, header=${String(videoBytes.copyOfRange(0, minOf(8, videoBytes.size)))}")
         Log.d(TAG, "exportMotionPhoto: 视频数据有效: $isValidVideo")
         
         if (!isValidVideo) {
-            Log.e(TAG, "exportMotionPhoto: 视频数据无效，可能偏移量计算错误或格式不支持")
-            // 打印前20字节的16进制用于调试
-            val hexDebug = videoBytes.take(20).joinToString(" ") { String.format("%02X", it) }
-            Log.d(TAG, "exportMotionPhoto: 视频数据前20字节hex: $hexDebug")
+            Log.e(TAG, "exportMotionPhoto: 视频数据无效，返回静态图片")
             return@withContext writeFileToMediaStoreFromBitmap(framed, "$fileName-static.jpg")
         }
 
+        // 创建带 XMP 元数据的 Motion Photo
+        // 步骤：创建 JPEG + XMP + 视频数据 的结构
         val tempFile = File(context.cacheDir, "$fileName-motion.jpg")
+        
+        // 计算视频在文件中的位置 = JPEG 大小
+        // 但我们需要考虑 XMP 元数据的大小
+        val xmpMetadata = createMotionPhotoXmp(videoBytes.size.toLong())
+        val xmpBytes = xmpMetadata.toByteArray(Charsets.UTF_8)
+        
+        // 创建临时文件: JPEG 数据 + XMP 元数据 + 视频数据
         FileOutputStream(tempFile).use { output ->
-            output.write(framedBytes)
+            // 1. 写入 JPEG 图片
+            ByteArrayOutputStream().use { jpegStream ->
+                framed.compress(Bitmap.CompressFormat.JPEG, 95, jpegStream)
+                val jpegBytes = jpegStream.toByteArray()
+                output.write(jpegBytes)
+                Log.d(TAG, "exportMotionPhoto: JPEG 大小: ${jpegBytes.size}")
+            }
+            
+            // 2. 写入 XMP 元数据 (APP1 segment)
+            val xmpSegment = createXmpApp1Segment(xmpBytes)
+            output.write(xmpSegment)
+            Log.d(TAG, "exportMotionPhoto: XMP segment 大小: ${xmpSegment.size}")
+            
+            // 3. 写入视频数据
             output.write(videoBytes)
         }
+        
         Log.d(TAG, "exportMotionPhoto: 组装文件大小: ${tempFile.length()} bytes")
-
         writeFileToMediaStore(tempFile, "$fileName.jpg", Format.JPEG.mimeType)
+    }
+
+    /**
+     * 创建 Motion Photo 所需的 XMP 元数据
+     * @param videoLength 视频数据的长度（用于计算 MicroVideoOffset）
+     */
+    private fun createMotionPhotoXmp(videoLength: Long): String {
+        // MicroVideoOffset 是从文件末尾计算的偏移量，即视频长度
+        return """<?xml version="1.0" encoding="UTF-8"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta" x:xmptk="Adobe XMP Core">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about=""
+    xmlns:GCamera="http://ns.google.com/photos/1.0/camera/"
+    xmlns:Container="http://ns.google.com/photos/1.0/container/"
+    GCamera:MicroVideo="1"
+    GCamera:MicroVideoVersion="1"
+    GCamera:MicroVideoOffset="$videoLength"
+    Container:Directory=""
+    Container:Directory[1]/Container:Item
+      Container:Item/Mime="image/jpeg"
+      Container:Item/Semantic="Primary"
+      Container:Item/Length="${videoLength}"
+    Container:Directory[2]/Container:Item
+      Container:Item/Mime="video/mp4"
+      Container:Item/Semantic="MotionPhoto"
+      Container:Item/Length="${videoLength}"/>
+  </rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>"""
+    }
+
+    /**
+     * 创建 XMP APP1 segment
+     * JPEG 结构: FF E1 [长度2字节] [XMP数据]
+     * 长度 = XMP数据长度 + 2 (用于存储 "http://ns.adobe.com/xap/1.0/" 头部)
+     */
+    private fun createXmpApp1Segment(xmpBytes: ByteArray): ByteArray {
+        // XMP 头部
+        val xmpHeader = "http://ns.adobe.com/xap/1.0/".toByteArray(Charsets.UTF_8)
+        
+        // APP1 标记 + 长度字段 + XMP头部 + XMP数据
+        val totalXmpSize = xmpHeader.size + xmpBytes.size
+        // 长度字段包含自己（2字节） + XMP头部 + XMP数据
+        val lengthField = totalXmpSize + 2
+        
+        val segment = ByteArray(2 + 2 + totalXmpSize) // FF E1 + length + xmpHeader + xmpBytes
+        
+        // FF E1
+        segment[0] = 0xFF.toByte()
+        segment[1] = 0xE1.toByte()
+        
+        // 长度 (big-endian)
+        segment[2] = ((lengthField shr 8) and 0xFF).toByte()
+        segment[3] = (lengthField and 0xFF).toByte()
+        
+        // XMP 头部
+        System.arraycopy(xmpHeader, 0, segment, 4, xmpHeader.size)
+        
+        // XMP 数据
+        System.arraycopy(xmpBytes, 0, segment, 4 + xmpHeader.size, xmpBytes.size)
+        
+        return segment
     }
 
     private fun writeFileToMediaStoreFromBitmap(bitmap: Bitmap, displayName: String): Uri {
