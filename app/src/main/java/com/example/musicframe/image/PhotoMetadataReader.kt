@@ -71,7 +71,7 @@ class PhotoMetadataReader(private val context: Context) {
 
     /**
      * 检测是否为实况照片，并返回视频偏移量
-     * 支持多种格式：Google Camera (MicroVideoOffset)、Samsung MVIMG、iOS Live Photos
+     * 支持多种格式：Google Camera, Samsung, Huawei, OPPO, iOS
      * @return Pair(isMotionPhoto, videoOffset)
      */
     private fun detectMotionPhoto(uri: Uri): Pair<Boolean, Long?> {
@@ -79,29 +79,44 @@ class PhotoMetadataReader(private val context: Context) {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 // 读取整个文件内容来检测实况照片
                 val fileData = inputStream.readBytes()
+                logDebug("detectMotionPhoto: 文件大小=${fileData.size}")
                 
-                // 方法1: 检测 Google Camera MicroVideoOffset (最准确)
+                // 方法1: 检测 Google Camera MicroVideoOffset (小米/三星GCam等)
                 val microVideoOffset = findMicroVideoOffset(fileData)
                 if (microVideoOffset != null) {
-                    logDebug("detectMotionPhoto: 检测到 Google Camera 实况照片, offset=$microVideoOffset")
+                    logDebug("detectMotionPhoto: 检测到 Google Camera/MicroVideoOffset, offset=$microVideoOffset")
                     return@use Pair(true, microVideoOffset)
                 }
                 
-                // 方法2: 检测 Samsung MVIMG 格式 (MotionPhoto_Data trailer)
+                // 方法2: 检测华为实况照片 (v2_f35 marker)
+                val huaweiOffset = findHuaweiMotionPhotoOffset(fileData)
+                if (huaweiOffset != null) {
+                    logDebug("detectMotionPhoto: 检测到华为实况照片, offset=$huaweiOffset")
+                    return@use Pair(true, huaweiOffset)
+                }
+                
+                // 方法3: 检测 OPPO Container:Directory 格式
+                val oppoOffset = findOPPOContainerOffset(fileData)
+                if (oppoOffset != null) {
+                    logDebug("detectMotionPhoto: 检测到 OPPO 实况照片, offset=$oppoOffset")
+                    return@use Pair(true, oppoOffset)
+                }
+                
+                // 方法4: 检测 Samsung MVIMG 格式 (MotionPhoto_Data trailer)
                 val samsungOffset = findSamsungMotionPhotoOffset(fileData)
                 if (samsungOffset != null) {
                     logDebug("detectMotionPhoto: 检测到 Samsung MVIMG 实况照片, offset=$samsungOffset")
                     return@use Pair(true, samsungOffset)
                 }
                 
-                // 方法3: 检测 Samsung One UI 6+ 格式 (通过 ftyp 位置)
+                // 方法5: 检测 Samsung One UI 6+ 格式 (通过 ftyp 位置)
                 val samsungNewOffset = findSamsungNewFormatOffset(fileData)
                 if (samsungNewOffset != null) {
                     logDebug("detectMotionPhoto: 检测到 Samsung 新格式实况照片, offset=$samsungNewOffset")
                     return@use Pair(true, samsungNewOffset)
                 }
                 
-                // 方法4: 检测 iOS Live Photos
+                // 方法6: 检测 iOS Live Photos
                 val iosOffset = findIOSLivePhotoOffset(fileData)
                 if (iosOffset != null) {
                     logDebug("detectMotionPhoto: 检测到 iOS Live Photos, offset=$iosOffset")
@@ -119,11 +134,10 @@ class PhotoMetadataReader(private val context: Context) {
     /**
      * 查找 Google Camera MicroVideoOffset
      * Google Camera (包括 Samsung GCam) 使用 XMP 中的 MicroVideoOffset 标签
+     * 注意：MicroVideoOffset 是从文件末尾计算的偏移量
      */
     private fun findMicroVideoOffset(data: ByteArray): Long? {
         // 在 XMP 元数据中查找 MicroVideoOffset
-        // XMP 通常在 APP1 (FF E1) 段中，以 "http://ns.adobe.com/xap/1.0/" 开头
-        
         val xmpMarker = "http://ns.adobe.com/xap/1.0/".toByteArray()
         
         for (i in 0 until data.size - xmpMarker.size) {
@@ -137,18 +151,98 @@ class PhotoMetadataReader(private val context: Context) {
             if (found) {
                 // 找到 XMP，从这里开始搜索 MicroVideoOffset
                 val xmpStart = i
-                val xmpEnd = minOf(xmpStart + 10000, data.size) // XMP 通常不超过 10KB
+                val xmpEnd = minOf(xmpStart + 10000, data.size)
                 
                 val xmpContent = data.sliceArray(xmpStart until xmpEnd)
                 val xmpString = String(xmpContent, Charsets.ISO_8859_1)
                 
-                // 查找 MicroVideoOffset="数字"
-                val regex = """MicroVideoOffset\s*=\s*["']([\d]+)["']""".toRegex()
+                // 查找 MicroVideoOffset="数字" 或 MicroVideoOffset>数字<
+                val regex = """MicroVideoOffset\s*[=>]\s*["']?([\d]+)["']?""".toRegex()
                 val match = regex.find(xmpString)
                 if (match != null) {
-                    val offset = match.groupValues[1].toLongOrNull()
-                    logDebug("findMicroVideoOffset: 在 XMP 中找到 offset=$offset")
-                    return offset
+                    val videoSize = match.groupValues[1].toLongOrNull()
+                    if (videoSize != null && videoSize > 0) {
+                        // MicroVideoOffset 是从文件末尾计算的，所以视频开始位置 = 文件大小 - videoSize
+                        val videoOffset = data.size - videoSize
+                        logDebug("findMicroVideoOffset: 找到 MicroVideoOffset=$videoSize, 计算视频位置=$videoOffset")
+                        return videoOffset
+                    }
+                }
+            }
+        }
+        
+        return null
+    }
+
+    /**
+     * 查找华为实况照片 (Moving Picture) 的视频偏移量
+     * 华为使用 v2_f35 marker 在文件末尾
+     */
+    private fun findHuaweiMotionPhotoOffset(data: ByteArray): Long? {
+        // 华为: v2_f35 marker 在文件末尾附近
+        val huaweiMarker = "v2_f35".toByteArray()
+        
+        // 从文件末尾向前搜索
+        for (i in (data.size - huaweiMarker.size - 100).coerceAtLeast(0) until data.size - huaweiMarker.size) {
+            var found = true
+            for (j in huaweiMarker.indices) {
+                if (data[i + j] != huaweiMarker[j]) {
+                    found = false
+                    break
+                }
+            }
+            if (found) {
+                // 华为格式: marker 后面是视频数据
+                logDebug("findHuaweiMotionPhotoOffset: 在 $i 找到 v2_f35 marker")
+                // 视频开始位置是 marker 的位置
+                return i.toLong()
+            }
+        }
+        
+        return null
+    }
+
+    /**
+     * 查找 OPPO/Vivo 实况照片的偏移量 (Container:Directory 格式)
+     * OPPO 使用 Container:Directory 结构
+     */
+    private fun findOPPOContainerOffset(data: ByteArray): Long? {
+        // 查找 XMP Container:Directory 结构
+        val xmpMarker = "http://ns.adobe.com/xap/1.0/".toByteArray()
+        
+        for (i in 0 until data.size - xmpMarker.size) {
+            var found = true
+            for (j in xmpMarker.indices) {
+                if (data[i + j] != xmpMarker[j]) {
+                    found = false
+                    break
+                }
+            }
+            if (found) {
+                val xmpStart = i
+                val xmpEnd = minOf(xmpStart + 15000, data.size)
+                val xmpContent = data.sliceArray(xmpStart until xmpEnd)
+                val xmpString = String(xmpContent, Charsets.ISO_8859_1)
+                
+                // 检查是否有 Container:Directory 和 Item:Length
+                if (xmpString.contains("Container:Directory") || xmpString.contains("Container")) {
+                    // 查找 Item:Length (视频长度)
+                    val lengthRegex = """Item:Length["\s>]+([\d]+)""".toRegex()
+                    val lengthMatch = lengthRegex.find(xmpString)
+                    
+                    // 查找 MotionPhoto 标记
+                    val motionPhotoRegex = """MotionPhoto\s*=\s*["']?1["']?""".toRegex()
+                    val hasMotionPhoto = motionPhotoRegex.containsMatchIn(xmpString)
+                    
+                    if (hasMotionPhoto && lengthMatch != null) {
+                        val videoLength = lengthMatch.groupValues[1].toLongOrNull()
+                        if (videoLength != null && videoLength > 0) {
+                            // 视频开始位置 = 文件大小 - 视频长度
+                            val videoOffset = data.size - videoLength
+                            logDebug("findOPPOContainerOffset: 找到 Container 格式, 视频长度=$videoLength, 位置=$videoOffset")
+                            return videoOffset
+                        }
+                    }
                 }
             }
         }
@@ -188,7 +282,6 @@ class PhotoMetadataReader(private val context: Context) {
     private fun findSamsungNewFormatOffset(data: ByteArray): Long? {
         // Samsung One UI 6+: ftyp atom 在特定位置
         val ftypMarker = "ftyp".toByteArray()
-        val eoiMarker = byteArrayOf(0xFF.toByte(), 0xD9.toByte())
         
         // 找到所有 ftyp 位置
         val ftypPositions = mutableListOf<Int>()
@@ -231,7 +324,6 @@ class PhotoMetadataReader(private val context: Context) {
     private fun findIOSLivePhotoOffset(data: ByteArray): Long? {
         // iOS Live Photos 通常有 moov/mdat 结构
         val moovMarker = "moov".toByteArray()
-        val mdatMarker = "mdat".toByteArray()
         
         // 查找 moov atom
         for (i in 10 until data.size - 4) {
@@ -243,7 +335,7 @@ class PhotoMetadataReader(private val context: Context) {
                 }
             }
             if (foundMoov) {
-                return (i - 4).toLong() // 返回 size 字段前的位置
+                return (i - 4).toLong()
             }
         }
         
