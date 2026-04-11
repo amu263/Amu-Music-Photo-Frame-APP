@@ -12,6 +12,7 @@ import com.example.musicframe.model.MusicMetadata
 
 data class MusicFrameUiState(
     val selectedImageUri: Uri? = null,
+    val cachedImageFile: java.io.File? = null, // 缓存的图片文件，包含完整的实况照片数据
     val originalBitmap: Bitmap? = null,
     val framedBitmap: Bitmap? = null,
     val musicMetadata: MusicMetadata? = null,

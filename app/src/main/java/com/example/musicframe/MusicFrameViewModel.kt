@@ -124,6 +124,7 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
             _uiState.update {
                 it.copy(
                     selectedImageUri = uri, // 保留原始 URI 用于元数据读取
+                    cachedImageFile = copiedFile, // 保存缓存文件用于视频提取
                     originalBitmap = bitmap,
                     photoMetadata = photoMetadata,
                     message = null
@@ -303,17 +304,23 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         val state = _uiState.value
         val bitmap = state.framedBitmap ?: return
         val motionOffset = state.photoMetadata?.motionVideoOffset ?: return
-        val sourceUri = state.selectedImageUri ?: return
+        val cachedFile = state.cachedImageFile ?: state.selectedImageUri ?: return
         viewModelScope.launch {
             _uiState.update { it.copy(isExporting = true, message = null) }
             runCatching {
+                // 优先使用缓存文件，如果缓存文件不存在则使用原始 URI
+                val sourceUri = if (cachedFile is java.io.File) {
+                    android.net.Uri.fromFile(cachedFile)
+                } else {
+                    cachedFile as android.net.Uri
+                }
                 exporter.exportMotionPhoto(bitmap, MotionPhotoInfo(sourceUri, motionOffset))
             }.onSuccess { uri ->
                 _uiState.update { state ->
                     state.copy(isExporting = false, message = "已导出实况相框", pendingShareRequest = ShareRequest(uri, ImageExporter.Format.JPEG.mimeType))
                 }
             }.onFailure { error ->
-                _uiState.update { state -> state.copy(isExporting = false, message = error.localizedMessage) }
+                _uiState.update { state -> state.copy(isExporting = false, message = "导出失败: ${error.localizedMessage ?: error.message ?: "未知错误"}") }
             }
         }
     }
@@ -325,17 +332,23 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         val state = _uiState.value
         val bitmap = state.framedBitmap ?: return
         val motionOffset = state.photoMetadata?.motionVideoOffset ?: return
-        val sourceUri = state.selectedImageUri ?: return
+        val cachedFile = state.cachedImageFile ?: state.selectedImageUri ?: return
         viewModelScope.launch {
             _uiState.update { it.copy(isExporting = true, message = null) }
             runCatching {
+                // 优先使用缓存文件，如果缓存文件不存在则使用原始 URI
+                val sourceUri = if (cachedFile is java.io.File) {
+                    android.net.Uri.fromFile(cachedFile)
+                } else {
+                    cachedFile as android.net.Uri
+                }
                 exporter.exportMotionPhotoWithVideoWatermark(bitmap, MotionPhotoInfo(sourceUri, motionOffset))
             }.onSuccess { uri ->
                 _uiState.update { state ->
                     state.copy(isExporting = false, message = "已导出动态相框（视频水印版）", pendingShareRequest = ShareRequest(uri, ImageExporter.Format.JPEG.mimeType))
                 }
             }.onFailure { error ->
-                _uiState.update { state -> state.copy(isExporting = false, message = "动态相框导出失败: ${error.localizedMessage}") }
+                _uiState.update { state -> state.copy(isExporting = false, message = "动态导出失败: ${error.localizedMessage ?: error.message ?: "未知错误"}") }
             }
         }
     }
