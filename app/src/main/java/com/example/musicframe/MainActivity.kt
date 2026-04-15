@@ -63,6 +63,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -103,6 +105,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.musicframe.domain.model.FrameControlAction
+import com.example.musicframe.image.FrameMode
 import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.image.PhotoMetadataReader
 import com.example.musicframe.media.MusicMetadataBroadcaster
@@ -478,6 +481,15 @@ fun musicFrameScreen(
                 }
             }
         )
+
+        // 星座运势模式 - 生日输入（仅在选中星座模式时显示）
+        if (state.frameMode == FrameMode.ZODIAC_HOROSCOPE) {
+            birthdayInputCard(
+                birthdayMonth = state.userBirthdayMonth,
+                birthdayDay = state.userBirthdayDay,
+                onBirthdayChange = { month, day -> viewModel.setUserBirthday(month, day) }
+            )
+        }
 
         // 导出格式选择
         exportFormatSelector(
@@ -1037,4 +1049,131 @@ private fun logContentDialog(
             }
         }
     )
+}
+
+@Composable
+private fun birthdayInputCard(
+    birthdayMonth: Int,
+    birthdayDay: Int,
+    onBirthdayChange: (Int, Int) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "🎂 设置生日以获取专属星座运势",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 月份选择
+                Box(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    var expandedMonth by remember { mutableStateOf(false) }
+                    val months = (1..12).toList()
+                    val monthNames = listOf("1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月")
+                    
+                    OutlinedButton(
+                        onClick = { expandedMonth = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (birthdayMonth > 0) monthNames[birthdayMonth - 1] else "月份",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    
+                    DropdownMenu(
+                        expanded = expandedMonth,
+                        onDismissRequest = { expandedMonth = false },
+                        modifier = Modifier.fillMaxWidth(0.5f)
+                    ) {
+                        months.forEach { month ->
+                            DropdownMenuItem(
+                                text = { Text(monthNames[month - 1]) },
+                                onClick = {
+                                    onBirthdayChange(month, birthdayDay)
+                                    expandedMonth = false
+                                }
+                            )
+                        }
+                    }
+                }
+                
+                // 日期选择
+                Box(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    var expandedDay by remember { mutableStateOf(false) }
+                    val days = (1..31).toList()
+                    
+                    OutlinedButton(
+                        onClick = { expandedDay = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (birthdayDay > 0) "${birthdayDay}日" else "日期",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    
+                    DropdownMenu(
+                        expanded = expandedDay,
+                        onDismissRequest = { expandedDay = false },
+                        modifier = Modifier.fillMaxWidth(0.5f)
+                    ) {
+                        days.forEach { day ->
+                            DropdownMenuItem(
+                                text = { Text("${day}日") },
+                                onClick = {
+                                    onBirthdayChange(birthdayMonth, day)
+                                    expandedDay = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            
+            if (birthdayMonth > 0 && birthdayDay > 0) {
+                val zodiacInfo = getZodiacInfo(birthdayMonth, birthdayDay)
+                Text(
+                    text = "星座: $zodiacInfo",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
+
+private fun getZodiacInfo(month: Int, day: Int): String {
+    val zodiacs = listOf(
+        Pair("白羊座", Pair(3, 21)),
+        Pair("金牛座", Pair(4, 20)),
+        Pair("双子座", Pair(5, 21)),
+        Pair("巨蟹座", Pair(6, 21)),
+        Pair("狮子座", Pair(7, 23)),
+        Pair("处女座", Pair(8, 23)),
+        Pair("天秤座", Pair(9, 23)),
+        Pair("天蝎座", Pair(10, 23)),
+        Pair("射手座", Pair(11, 22)),
+        Pair("摩羯座", Pair(12, 22)),
+        Pair("水瓶座", Pair(1, 20)),
+        Pair("双鱼座", Pair(2, 19))
+    )
+    return zodiacs.findLast { month > it.second.first || (month == it.second.first && day >= it.second.second) }?.first ?: "白羊座"
 }

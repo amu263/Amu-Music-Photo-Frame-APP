@@ -267,6 +267,11 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         rebuildFrame()
     }
 
+    fun setUserBirthday(month: Int, day: Int) {
+        _uiState.update { it.copy(userBirthdayMonth = month, userBirthdayDay = day) }
+        rebuildFrame()
+    }
+
     fun setDarkBackground(enabled: Boolean) {
         _uiState.update { it.copy(useDarkBackground = enabled) }
         rebuildFrame()
@@ -355,7 +360,9 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
                 headphoneTextColor = state.userHeadphoneTextColor,
                 typeface = typefaceToUse,
                 photoMetadata = state.photoMetadata,
-                useDarkBackground = state.useDarkBackground
+                useDarkBackground = state.useDarkBackground,
+                userBirthdayMonth = state.userBirthdayMonth,
+                userBirthdayDay = state.userBirthdayDay
             )
             val framed = frameComposer.compose(
                 source = source,

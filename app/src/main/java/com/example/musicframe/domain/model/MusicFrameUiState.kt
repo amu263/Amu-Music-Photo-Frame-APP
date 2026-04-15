@@ -30,7 +30,10 @@ data class MusicFrameUiState(
     val customTypeface: Typeface? = null,
     val customFontName: String? = null,
     val customFontPath: String? = null,
-    val userHeadphoneTextColor: Int? = null
+    val userHeadphoneTextColor: Int? = null,
+    // 星座运势模式 - 用户生日
+    val userBirthdayMonth: Int = 0,
+    val userBirthdayDay: Int = 0
 )
 
 enum class FrameColorMode {

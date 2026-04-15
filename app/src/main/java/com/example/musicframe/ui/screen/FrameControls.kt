@@ -117,6 +117,7 @@ private fun frameModeSelector(
                     FrameMode.CUSTOM_LEICA -> "自定义"
                     FrameMode.MUSIC_FLOW -> "流光"
                     FrameMode.MUSIC_SOLID -> "纯色"
+                    FrameMode.ZODIAC_HOROSCOPE -> "星座"
                 },
                 isSelected = currentMode == mode,
                 onClick = { onModeSelect(mode) },

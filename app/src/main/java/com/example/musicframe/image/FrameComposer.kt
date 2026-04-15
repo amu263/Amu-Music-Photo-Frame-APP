@@ -108,6 +108,7 @@ class FrameComposer {
             FrameMode.CUSTOM_LEICA -> drawCustomLeica(renderParams, config, musicMetadata)
             FrameMode.MUSIC_FLOW -> drawMusicFlow(renderParams, config, musicMetadata)
             FrameMode.MUSIC_SOLID -> drawMusicSolid(renderParams, config, musicMetadata)
+            FrameMode.ZODIAC_HOROSCOPE -> drawZodiacHoroscope(renderParams, config, musicMetadata)
         }
     }
 
@@ -816,6 +817,162 @@ class FrameComposer {
         return (a shl 24) or (r.toInt() shl 16) or (g.toInt() shl 8) or b.toInt()
     }
     
+    private fun drawZodiacHoroscope(renderParams: DrawRenderParams, config: FrameConfig, musicMetadata: MusicMetadata?): Bitmap {
+        val source = renderParams.source
+        val width = source.width
+        val height = source.height
+        
+        val frameWidth = (min(width, height) * 0.12f).toInt()
+        val bottomFrameHeight = (height * 0.25f).toInt()
+        val outputWidth = width + frameWidth * 2
+        val outputHeight = height + frameWidth + bottomFrameHeight
+        
+        val output = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        
+        // 获取当前日期
+        val calendar = java.util.Calendar.getInstance()
+        val year = calendar.get(java.util.Calendar.YEAR)
+        val month = calendar.get(java.util.Calendar.MONTH) + 1
+        val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+        
+        // 计算运势
+        val horoscope = if (config.userBirthdayMonth > 0 && config.userBirthdayDay > 0) {
+            HoroscopeCalculator.getHoroscope(
+                birthdayMonth = config.userBirthdayMonth,
+                birthdayDay = config.userBirthdayDay,
+                year = year,
+                month = month,
+                day = day
+            )
+        } else {
+            // 没有设置生日时，使用默认（今天日期作为种子）
+            HoroscopeCalculator.getHoroscope(1, 1, year, month, day)
+        }
+        
+        // 运势颜色作为相框颜色
+        val frameColor = horoscope.fortuneColor
+        
+        // 1. 绘制背景
+        if (config.useDarkBackground) {
+            val darkBgPaint = Paint().apply { color = darkenColor(frameColor, 0.85f) }
+            canvas.drawRect(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat(), darkBgPaint)
+        }
+        
+        // 2. 绘制渐变边框
+        val gradientPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val gradient = LinearGradient(
+            0f, 0f, outputWidth.toFloat(), outputHeight.toFloat(),
+            intArrayOf(frameColor, darkenColor(frameColor, 0.3f), frameColor),
+            floatArrayOf(0f, 0.5f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        gradientPaint.shader = gradient
+        canvas.drawRect(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat(), gradientPaint)
+        
+        // 3. 中央清晰原图
+        canvas.drawBitmap(source, frameWidth.toFloat(), frameWidth.toFloat(), null)
+        
+        // 文字颜色（基于运势颜色计算）
+        val textColor = getFortuneTextColor(frameColor)
+        val subTextColor = (textColor and 0x00FFFFFF) or 0xAA000000.toInt()
+        
+        // 顶部：运势名称（替换原位置信息）
+        val topFrameCenterY = frameWidth.toFloat() / 2f
+        val fortuneText = "${horoscope.zodiacName} · ${horoscope.fortuneName}"
+        
+        val fortunePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = textColor
+            textSize = frameWidth.toFloat() * 0.32f
+            textAlign = Paint.Align.CENTER
+            typeface = getBoldTypeface(config)
+        }
+        
+        // 胶囊背景
+        val textBounds = android.graphics.Rect()
+        fortunePaint.getTextBounds(fortuneText, 0, fortuneText.length, textBounds)
+        val textWidthPx = textBounds.width().toFloat()
+        val textHeightPx = textBounds.height().toFloat()
+        val paddingH = frameWidth.toFloat() * 0.15f
+        val paddingV = frameWidth.toFloat() * 0.08f
+        val cornerRadius = (textHeightPx + paddingV * 2) * 0.5f
+        
+        val bgRect = android.graphics.RectF(
+            outputWidth / 2f - textWidthPx / 2 - paddingH,
+            topFrameCenterY - textHeightPx - paddingV,
+            outputWidth / 2f + textWidthPx / 2 + paddingH,
+            topFrameCenterY + paddingV
+        )
+        
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = frameColor
+            setShadowLayer(paddingV * 0.4f, 0f, -paddingV * 0.2f, 0x44000000.toInt())
+        }
+        canvas.drawRoundRect(bgRect, cornerRadius, cornerRadius, bgPaint)
+        
+        val textY = topFrameCenterY - paddingV * 0.3f
+        canvas.drawText(fortuneText, outputWidth / 2f, textY, fortunePaint)
+        
+        // 底部：运势行动建议（替换原音乐信息位置）
+        val bottomStartY = (frameWidth + height).toFloat()
+        val centerX = outputWidth / 2f
+        val actualBottomHeight = bottomFrameHeight.toFloat()
+        val frameCenterY = bottomStartY + actualBottomHeight / 2f
+        
+        // 运势行动建议
+        val actionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = textColor
+            textSize = actualBottomHeight * 0.12f
+            textAlign = Paint.Align.CENTER
+            typeface = getItalicTypeface(config)
+        }
+        
+        // 如果文字太长，分两行显示
+        val actionTip = horoscope.actionTip
+        val maxActionWidth = outputWidth - frameWidth * 4
+        val actionTextWidth = actionPaint.measureText(actionTip)
+        
+        if (actionTextWidth > maxActionWidth && actionTip.length > 10) {
+            // 尝试在中间断开
+            val halfLen = actionTip.length / 2
+            val breakPoint = actionTip.lastIndexOf('，', halfLen).takeIf { it > 5 }
+                ?: actionTip.lastIndexOf(' ', halfLen).takeIf { it > 5 }
+                ?: halfLen
+            val line1 = actionTip.substring(0, breakPoint)
+            val line2 = actionTip.substring(breakPoint)
+            val line1Width = actionPaint.measureText(line1)
+            if (line1Width <= maxActionWidth) {
+                canvas.drawText(line1, centerX, frameCenterY - actionPaint.textSize * 0.5f, actionPaint)
+                canvas.drawText(line2, centerX, frameCenterY + actionPaint.textSize * 0.8f, actionPaint)
+            } else {
+                canvas.drawText(actionTip, centerX, frameCenterY, actionPaint)
+            }
+        } else {
+            canvas.drawText(actionTip, centerX, frameCenterY, actionPaint)
+        }
+        
+        // 底部：日期（替换原设备信息位置）
+        val dateText = java.text.SimpleDateFormat("yyyy.MM.dd", java.util.Locale.getDefault()).format(java.util.Date())
+        val datePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = subTextColor
+            textSize = actualBottomHeight * 0.09f
+            textAlign = Paint.Align.CENTER
+        }
+        canvas.drawText(dateText, centerX, bottomStartY + actualBottomHeight * 0.78f, datePaint)
+        
+        // 底部：今日幸运色（替换原时间戳位置）
+        val luckyColorHex = String.format("#%06X", horoscope.luckyColor and 0xFFFFFF)
+        val luckyText = "幸运色: $luckyColorHex"
+        val luckyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = subTextColor
+            textSize = actualBottomHeight * 0.09f
+            textAlign = Paint.Align.CENTER
+        }
+        canvas.drawText(luckyText, centerX, bottomStartY + actualBottomHeight * 0.92f, luckyPaint)
+        
+        return output
+    }
+
     private fun darkenColor(color: Int, factor: Float): Int {
         val hsv = FloatArray(3)
         android.graphics.Color.colorToHSV(color, hsv)
@@ -828,6 +985,14 @@ class FrameComposer {
         android.graphics.Color.colorToHSV(color, hsv)
         hsv[2] = (hsv[2] + (1f - hsv[2]) * factor).coerceIn(0f, 1f)
         return android.graphics.Color.HSVToColor(hsv)
+    }
+    
+    private fun getFortuneTextColor(backgroundColor: Int): Int {
+        val r = android.graphics.Color.red(backgroundColor)
+        val g = android.graphics.Color.green(backgroundColor)
+        val b = android.graphics.Color.blue(backgroundColor)
+        val luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+        return if (luminance > 0.5) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()
     }
 }
 
