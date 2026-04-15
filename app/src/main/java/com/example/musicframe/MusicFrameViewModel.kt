@@ -269,6 +269,9 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setUserBirthday(month: Int, day: Int) {
         _uiState.update { it.copy(userBirthdayMonth = month, userBirthdayDay = day) }
+    }
+
+    fun confirmUserBirthday() {
         rebuildFrame()
     }
 

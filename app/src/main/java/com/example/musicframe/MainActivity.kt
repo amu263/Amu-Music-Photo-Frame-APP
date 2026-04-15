@@ -487,7 +487,8 @@ fun musicFrameScreen(
             birthdayInputCard(
                 birthdayMonth = state.userBirthdayMonth,
                 birthdayDay = state.userBirthdayDay,
-                onBirthdayChange = { month, day -> viewModel.setUserBirthday(month, day) }
+                onBirthdayChange = { month, day -> viewModel.setUserBirthday(month, day) },
+                onBirthdayConfirm = { viewModel.confirmUserBirthday() }
             )
         }
 
@@ -1055,7 +1056,8 @@ private fun logContentDialog(
 private fun birthdayInputCard(
     birthdayMonth: Int,
     birthdayDay: Int,
-    onBirthdayChange: (Int, Int) -> Unit
+    onBirthdayChange: (Int, Int) -> Unit,
+    onBirthdayConfirm: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1155,6 +1157,13 @@ private fun birthdayInputCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
                 )
+
+                Button(
+                    onClick = onBirthdayConfirm,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("确认生日")
+                }
             }
         }
     }
