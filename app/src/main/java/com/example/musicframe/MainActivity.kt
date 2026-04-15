@@ -1161,19 +1161,30 @@ private fun birthdayInputCard(
 }
 
 private fun getZodiacInfo(month: Int, day: Int): String {
-    val zodiacs = listOf(
-        Pair("白羊座", Pair(3, 21)),
-        Pair("金牛座", Pair(4, 20)),
-        Pair("双子座", Pair(5, 21)),
-        Pair("巨蟹座", Pair(6, 21)),
-        Pair("狮子座", Pair(7, 23)),
-        Pair("处女座", Pair(8, 23)),
-        Pair("天秤座", Pair(9, 23)),
-        Pair("天蝎座", Pair(10, 23)),
-        Pair("射手座", Pair(11, 22)),
-        Pair("摩羯座", Pair(12, 22)),
-        Pair("水瓶座", Pair(1, 20)),
-        Pair("双鱼座", Pair(2, 19))
-    )
-    return zodiacs.findLast { month > it.second.first || (month == it.second.first && day >= it.second.second) }?.first ?: "白羊座"
+    // Day-of-year calculation
+    val daysInMonth = intArrayOf(0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+    val monthStarts = IntArray(13)
+    for (i in 2..12) {
+        monthStarts[i] = monthStarts[i - 1] + daysInMonth[i - 1]
+    }
+    val doy = monthStarts[month] + day
+
+    // Capricorn wraps year boundary: Dec 22+ (doy 356+) OR Jan 1-19 (doy 1-19)
+    if (doy >= 356 || doy <= 19) return "摩羯座"
+    if (doy >= 20 && doy <= 49) return "水瓶座"
+    if (doy >= 50 && doy <= 79) return "双鱼座"
+
+    // Standard zodiac boundaries (first day): Aries Mar 21, Taurus Apr 20, etc.
+    return when {
+        doy >= 80 && doy < 110 -> "白羊座"
+        doy >= 110 && doy < 140 -> "金牛座"
+        doy >= 140 && doy < 171 -> "双子座"
+        doy >= 171 && doy < 203 -> "巨蟹座"
+        doy >= 203 && doy < 234 -> "狮子座"
+        doy >= 234 && doy < 265 -> "处女座"
+        doy >= 265 && doy < 295 -> "天秤座"
+        doy >= 295 && doy < 326 -> "天蝎座"
+        doy >= 326 && doy < 356 -> "射手座"
+        else -> "白羊座"
+    }
 }
