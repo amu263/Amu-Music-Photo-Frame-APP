@@ -114,8 +114,34 @@ object HoroscopeCalculator {
      * 获取星座信息
      */
     fun getZodiac(month: Int, day: Int): Zodiac {
-        return zodiacData.findLast { month > it.startMonth || (month == it.startMonth && day >= it.startDay) }
-            ?: zodiacData.first()
+        // Day-of-year calculation
+        val daysInMonth = intArrayOf(0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+        val monthStarts = IntArray(13)
+        for (i in 2..12) {
+            monthStarts[i] = monthStarts[i - 1] + daysInMonth[i - 1]
+        }
+        val doy = monthStarts[month] + day
+
+        // Capricorn wraps year boundary: Dec 22+ (doy 356+) OR Jan 1-19 (doy 1-19)
+        if (doy >= 356 || doy <= 19) return zodiacData.find { it.name == "摩羯座" }!!
+        if (doy in 20..49) return zodiacData.find { it.name == "水瓶座" }!!
+        if (doy in 50..79) return zodiacData.find { it.name == "双鱼座" }!!
+
+        // Standard zodiac boundaries (first day): Aries Mar 21, Taurus Apr 20, etc.
+        return zodiacData.find {
+            when (it.name) {
+                "白羊座" -> doy in 80..109
+                "金牛座" -> doy in 110..139
+                "双子座" -> doy in 140..170
+                "巨蟹座" -> doy in 171..202
+                "狮子座" -> doy in 203..233
+                "处女座" -> doy in 234..264
+                "天秤座" -> doy in 265..294
+                "天蝎座" -> doy in 295..325
+                "射手座" -> doy in 326..355
+                else -> false
+            }
+        } ?: zodiacData.first()
     }
 
     /**
