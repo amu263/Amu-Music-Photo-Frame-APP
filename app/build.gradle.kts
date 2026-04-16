@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.musicframe"
         minSdk = 26
         targetSdk = 35
-        versionCode = 36
-        versionName = "1.0.36"
+        versionCode = 37
+        versionName = "1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -68,7 +68,7 @@ android {
         variant.outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
             val appName = "AMuPtoFrame"
-            val version = variant.versionName?.replace(".debug", "") ?: "1.0.36"
+            val version = variant.versionName?.replace(".debug", "") ?: "1.4"
             val buildType = variant.buildType.name.lowercase()
             output.outputFileName = "${appName}-v${version}-${buildType}.apk"
         }
