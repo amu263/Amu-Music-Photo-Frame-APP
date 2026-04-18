@@ -4,9 +4,10 @@
 
 ![Android](https://img.shields.io/badge/Android-15-green?logo=android)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-purple?logo=kotlin)
-![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-2025.01.00-blue?logo=jetpackcompose)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-2025.02.00-blue?logo=jetpackcompose)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
-![Version](https://img.shields.io/badge/Version-1.0.30-blue)
+![Version](https://img.shields.io/badge/Version-1.4-blue)
+![VersionCode](https://img.shields.io/badge/VersionCode-37-green)
 
 **一款智能音乐取色相框生成工具 · 让每一张照片都有专属的 BGM**
 
@@ -15,6 +16,43 @@
 [📱 功能特性](#-功能特性) • [🔐 权限说明](#-权限说明) • [🛠️ 构建编译](#️-构建编译) • [📸 使用指南](#-使用指南) • [🎨 项目生态](#-项目生态)
 
 </div>
+
+---
+
+## 🌟 新版本 v1.4 更新内容
+
+### 🔔 通知权限修复（重要！）
+
+**通知权限检测机制全面重写**，彻底解决权限丢失问题：
+
+| 状态 | 含义 | 处理方式 |
+|------|------|----------|
+| **已授权 (GRANTED)** | 通知使用权已开启 | ✅ 正常工作 |
+| **未授权 (NOT_GRANTED)** | 用户未授权通知权限 | 点击按钮引导授权 |
+| **组件被禁用 (COMPONENT_DISABLED)** | 系统禁用了组件 | 引导用户手动开启 |
+| **服务无响应 (SERVICE_NOT_RESPONDING)** | 服务断开 | 自动尝试重新绑定 |
+
+#### 📌 如何重新获取通知授权？
+
+如果发现音乐信息无法获取，按以下步骤操作：
+
+1. **点击"已授权"按钮** — 应用会立即重新检测当前权限状态
+2. 如果仍显示未授权，前往 **系统设置 → 应用设置 → 音乐水印相框**
+3. 进入 **通知使用权** 页面，确保开关已开启
+4. 返回应用后**再次点击"已授权"按钮**，验证状态
+
+> 💡 **提示**：应用会在 `onResume` 时自动检查权限，也会定期检测元数据是否停止更新（服务断开检测）。如果服务断开，应用会自动尝试重新绑定。
+
+---
+
+### 🎨 幸运色与运势系统（全新功能）
+
+| 功能 | 描述 |
+|------|------|
+| **12 种高级电影感冷调色系** | 霓虹红 / 翡翠绿 / 激光青 / 幻影紫 / 熔岩橙 / 月光银 / 水银灰 / 深玫红 / 电光蓝 / 深空蓝 / 冰冷青 / 热粉 |
+| **10 级运势配色** | 1-10 级运势，配色从红→橙→黄→绿→紫→青→蓝渐变 |
+| **238 条行动建议库** | 核心种子库，每日 40 条唯一组合，支撑数十年不重复 |
+| **运势前缀/后缀多样化** | 增加变化性，更具趣味性 |
 
 ---
 
@@ -35,10 +73,12 @@
 │  🧠 Domain Layer (Business Logic)                           │
 │     ├── MusicFrameViewModel.kt                              │
 │     ├── FrameComposer.kt                                    │
+│     ├── HoroscopeCalculator.kt                              │
 │     └── ImageExporter.kt                                    │
 ├─────────────────────────────────────────────────────────────┤
 │  📦 Data Layer (Data Sources)                               │
 │     ├── NowPlayingListenerService.kt (音乐通知监听)          │
+│     ├── MusicMetadataBroadcaster.kt (元数据广播)             │
 │     ├── HeadphoneInfoRepository.kt (耳机信息)                │
 │     └── PhotoMetadataReader.kt (照片元数据)                  │
 └─────────────────────────────────────────────────────────────┘
@@ -49,10 +89,10 @@
 | 类别 | 技术 | 版本 |
 |------|------|------|
 | **语言** | Kotlin | 2.0.21 |
-| **UI 框架** | Jetpack Compose | BOM 2025.01.00 |
-| **设计系统** | Material 3 | 1.3.0+ |
+| **UI 框架** | Jetpack Compose | BOM 2025.02.00 |
+| **设计系统** | Material 3 + SaltUI 风格 | 1.3.0+ |
 | **构建工具** | Gradle | 8.7.3 |
-| **目标平台** | Android | SDK 35 (Android 15) |
+| **目标平台** | Android | SDK 36 (Android 16) |
 | **最低支持** | Android | SDK 26 (8.0) |
 
 ### 核心依赖
@@ -62,6 +102,7 @@
 - 🎨 **Palette** - 封面取色算法
 - 📷 **ExifInterface** - 照片元数据解析
 - 🔍 **Detekt** - 代码质量检查
+- ✨ **幸运色系统** - 电影感冷调色系
 
 ---
 
@@ -113,7 +154,7 @@
 #### 文字样式
 
 - **颜色选择** - 自动反色或手动指定（支持 HEX 输入 `#RRGGBB` / `#AARRGGBB`）
-- **字体导入** - 支持 TTF 字体文件导入
+- **字体导入** - 支持 TTF 字体文件导入，默认使用 qiji-combo.ttf
 - **文字描边** - 纯文字模式保持可读性，音乐流光模式使用对比色描边（8% 文字大小）
 - **文字效果** - 高级徕卡模式使用粗体，音乐流光模式使用斜体
 - **对齐方式** - 支持左对齐、居中对齐、右对齐
@@ -153,6 +194,17 @@
 
 > ⚠️ **注意**：仅授予通知权限不足以获取音乐信息，必须同时在系统设置中启用通知使用权。
 
+### ❓ 权限丢失或音乐信息不显示？
+
+如果发现音乐信息无法获取，按以下步骤操作：
+
+1. **点击"已授权"按钮** — 应用会立即重新检测当前权限状态
+2. 如果仍显示未授权，前往 **系统设置 → 应用设置 → 音乐水印相框**
+3. 进入 **通知使用权** 页面，确保开关已开启
+4. 返回应用后**再次点击"已授权"按钮**，验证状态
+
+> 💡 **提示**：应用内置多层检测机制 — 会自动检测 Settings 权限状态、组件启用状态、服务实际响应情况。如果服务断开，应用会自动尝试重新绑定。
+
 ### 权限流程图
 
 ```
@@ -168,6 +220,14 @@
                               │
                               ▼
                       ✅ 可以读取音乐信息
+                              
+         ┌─────────────────────────────────────┐
+         │  ⚠️ 权限丢失？音乐信息不显示？        │
+         │                                     │
+         │  1. 点击"已授权"按钮重新检测        │
+         │  2. 前往系统设置确认通知使用权已开启 │
+         │  3. 返回后再次点击验证状态           │
+         └─────────────────────────────────────┘
 ```
 
 ---
@@ -181,7 +241,7 @@
 | **JDK** | 17 | 17+ |
 | **Android Studio** | Giraffe | Meerkat / Ladybug |
 | **Gradle** | 8.7.3 | 8.7.3+ |
-| **Android SDK** | 35 | 35 |
+| **Android SDK** | 36 | 36 |
 
 ### 快速开始
 
@@ -241,9 +301,11 @@ Amu-Music-Photo-Frame-APP/
 │   │   │   │   ├── FrameComposer.kt         # 相框合成器
 │   │   │   │   ├── FrameConfig.kt           # 相框配置
 │   │   │   │   ├── FrameMode.kt             # 相框模式枚举
+│   │   │   │   ├── HoroscopeCalculator.kt   # 幸运色/运势计算
 │   │   │   │   └── PhotoMetadataReader.kt   # 照片元数据
 │   │   │   ├── media/
 │   │   │   │   ├── NowPlayingListenerService.kt  # 音乐监听
+│   │   │   │   ├── MusicMetadataBroadcaster.kt   # 元数据广播
 │   │   │   │   ├── HeadphoneInfoRepository.kt    # 耳机信息
 │   │   │   │   └── MusicMetadataRepository.kt    # 音乐元数据
 │   │   │   ├── export/
@@ -268,6 +330,8 @@ Amu-Music-Photo-Frame-APP/
 │   │   │           ├── Color.kt
 │   │   │           ├── Theme.kt
 │   │   │           └── Type.kt
+│   │   ├── assets/fonts/                     # 字体文件
+│   │   │   └── qiji-combo.ttf               # 默认水印字体
 │   │   ├── res/                             # 资源文件
 │   │   └── AndroidManifest.xml              # 应用清单
 │   └── build.gradle.kts                     # 模块构建配置
@@ -283,26 +347,27 @@ Amu-Music-Photo-Frame-APP/
 **`app/build.gradle.kts`**
 ```kotlin
 android {
-    compileSdk = 35
+    compileSdk = 36
+    namespace = "com.example.musicframe"
     
     defaultConfig {
         applicationId = "com.example.musicframe"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 37
+        versionName = "1.4"
     }
     
     buildTypes {
         release {
-            isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
         }
     }
 }
 
 dependencies {
-    implementation(platform("androidx.compose:compose-bom:2025.01.00"))
+    implementation(platform("androidx.compose:compose-bom:2025.02.00"))
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.palette:palette-ktx")
@@ -380,6 +445,17 @@ dependencies {
 - [x] 高级徕卡模式对比色描边替代胶囊背景（v1.0.29）
 - [x] 高级徕卡模式文字粗体效果（v1.0.30）
 - [x] GitHub PR 工作流集成
+
+### v1.4 新功能 ✅
+
+- [x] **通知权限检测机制重写** — 修复权限丢失问题
+- [x] **SaltUI 风格 UI 重构** — 薄荷绿主题配色
+- [x] **幸运色系统** — 12 种高级电影感冷调色系
+- [x] **10 级运势配色** — 红→橙→黄→绿→紫→青→蓝渐变
+- [x] **238 条行动建议库** — 每日 40 条唯一组合
+- [x] **运势前缀/后缀多样化** — 增加趣味性
+- [x] **qiji-combo.ttf 默认字体** — 水印相框文字
+- [x] **compileSdk 升级到 36** — 适配 Android 16
 
 ### 待优化 🚧
 
