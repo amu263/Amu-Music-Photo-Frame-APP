@@ -6,6 +6,7 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
+import android.graphics.Typeface
 import android.util.Log
 import com.example.musicframe.domain.model.FrameColorMode
 import com.example.musicframe.model.HeadphoneInfo
@@ -14,6 +15,63 @@ import kotlin.math.max
 import kotlin.math.min
 
 class FrameComposer {
+
+    /**
+     * 获取实际使用的 Typeface，如果配置了自定义字体则使用，否则使用默认字体
+     */
+    private fun getTypeface(config: FrameConfig?, style: Int = Typeface.NORMAL): Typeface {
+        return config?.typeface ?: Typeface.DEFAULT
+    }
+
+    /**
+     * 获取粗体 Typeface
+     */
+    private fun getBoldTypeface(config: FrameConfig?): Typeface {
+        val base = config?.typeface
+        return if (base != null) {
+            Typeface.create(base, Typeface.BOLD)
+        } else {
+            Typeface.DEFAULT_BOLD
+        }
+    }
+
+    /**
+     * 获取斜体 Typeface
+     */
+    private fun getItalicTypeface(config: FrameConfig?): Typeface {
+        val base = config?.typeface
+        return if (base != null) {
+            Typeface.create(base, Typeface.ITALIC)
+        } else {
+            Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+        }
+    }
+
+    /**
+     * 获取粗斜体 Typeface
+     */
+    private fun getBoldItalicTypeface(config: FrameConfig?): Typeface {
+        val base = config?.typeface
+        return if (base != null) {
+            Typeface.create(base, Typeface.BOLD_ITALIC)
+        } else {
+            Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC)
+        }
+    }
+
+    /**
+     * 获取 MONOSPACE 风格的 Typeface（用于播放器名称）
+     */
+    private fun getMonoTypeface(config: FrameConfig?, style: Int = Typeface.NORMAL): Typeface {
+        val base = config?.typeface
+        return if (base != null) {
+            // 如果有自定义字体，在其基础上应用 style
+            Typeface.create(base, style)
+        } else {
+            // 没有自定义字体时使用系统 MONOSPACE
+            Typeface.create(Typeface.MONOSPACE, style)
+        }
+    }
 
     fun compose(
         source: Bitmap,
@@ -50,6 +108,7 @@ class FrameComposer {
             FrameMode.CUSTOM_LEICA -> drawCustomLeica(renderParams, config, musicMetadata)
             FrameMode.MUSIC_FLOW -> drawMusicFlow(renderParams, config, musicMetadata)
             FrameMode.MUSIC_SOLID -> drawMusicSolid(renderParams, config, musicMetadata)
+            FrameMode.ZODIAC_HOROSCOPE -> drawZodiacHoroscope(renderParams, config, musicMetadata)
         }
     }
 
@@ -132,7 +191,7 @@ class FrameComposer {
             color = textColor
             textSize = separatorHeight * 0.9f
             textAlign = Paint.Align.LEFT
-            typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+            typeface = getMonoTypeface(config, Typeface.BOLD)
         }
         
         val playerText = renderParams.musicLines.getOrElse(1) { "" }
@@ -199,21 +258,69 @@ class FrameComposer {
         val timeY = infoY + separatorHeight * 1.2f
         canvas.drawText(timeText, centerX, timeY, timePaint)
         
-        // 地点信息
-        val locationText = config.photoMetadata?.locationText
-        if (!locationText.isNullOrBlank() && frameWidth > 0) {
+        // 地点信息（显示在照片顶端中央，国家·省份·城市格式）
+    val locationText = config.photoMetadata?.locationText
+    val lat = config.photoMetadata?.latitude
+    val lon = config.photoMetadata?.longitude
+    
+    // 最终显示的地点文字：优先用 locationText，否则用 GPS 坐标
+    val displayLocationText = when {
+        !locationText.isNullOrBlank() -> locationText
+        lat != null && lon != null && !(lat == 0.0 && lon == 0.0) -> {
+            val latDir = if (lat >= 0) "N" else "S"
+            val lonDir = if (lon >= 0) "E" else "W"
+            "GPS: ${String.format("%.2f°$latDir", kotlin.math.abs(lat))}, ${String.format("%.2f°$lonDir", kotlin.math.abs(lon))}"
+        }
+        else -> null
+    }
+    
+    // 调试模式已关闭
+    
+    // 显示地点文字（如果不为空）
+    if (!displayLocationText.isNullOrBlank() && frameWidth > 0) {
+            val locationText = displayLocationText  // 保持变量名兼容
             val topFrameCenterY = frameWidth.toFloat() / 2f
             val locationPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = textColor
                 textSize = frameWidth.toFloat() * 0.35f
                 textAlign = Paint.Align.CENTER
+                typeface = getBoldTypeface(config)
             }
-            val textWidth = locationPaint.measureText(locationText)
-            val maxWidth = outputWidth.toFloat() - frameWidth * 4
-            if (textWidth > maxWidth) {
-                locationPaint.textSize = locationPaint.textSize * (maxWidth / textWidth) * 0.95f
+            
+            // 计算文字尺寸以绘制胶囊背景
+            val textBounds = android.graphics.Rect()
+            locationPaint.getTextBounds(locationText, 0, locationText.length, textBounds)
+            val textWidth = textBounds.width().toFloat()
+            val textHeight = textBounds.height().toFloat()
+            
+            // 胶囊背景参数
+            val paddingH = frameWidth.toFloat() * 0.15f  // 水平内边距
+            val paddingV = frameWidth.toFloat() * 0.08f // 垂直内边距
+            val cornerRadius = textHeight * 0.5f + paddingV  // 圆角半径（胶囊状）
+            val bgRect = android.graphics.RectF(
+                centerX - textWidth / 2 - paddingH,
+                topFrameCenterY - textHeight - paddingV,
+                centerX + textWidth / 2 + paddingH,
+                topFrameCenterY + paddingV
+            )
+            
+            // 获取主色作为文字颜色，对比色作为背景
+            val dominantColor = musicMetadata?.dominantColor ?: 0xFF333333.toInt()
+            val bgColor = invertedColor(dominantColor)  // 对比色作为背景
+            
+            // 文字使用主色
+            locationPaint.color = dominantColor
+            
+            // 绘制胶囊背景（带内阴影实现内嵌立体感）
+            val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = bgColor
+                setShadowLayer(paddingV * 0.4f, 0f, -paddingV * 0.2f, 0x44000000.toInt())
             }
-            canvas.drawText(locationText, centerX, topFrameCenterY + locationPaint.textSize * 0.35f, locationPaint)
+            canvas.drawRoundRect(bgRect, cornerRadius, cornerRadius, bgPaint)
+            
+            // 绘制文字
+            val textY = topFrameCenterY - paddingV * 0.3f
+            canvas.drawText(locationText, centerX, textY, locationPaint)
         }
         
         return output
@@ -241,8 +348,8 @@ class FrameComposer {
         // 中央清晰原图
         canvas.drawBitmap(source, frameWidth.toFloat(), frameWidth.toFloat(), null)
         
-        // 底部内容
-        drawLeicaContent(canvas, renderParams, config.photoMetadata, outputWidth, height, bottomFrameHeight, bgColor, frameWidth)
+        // 底部内容（自定义徕卡色模式使用纯色背景，需要高对比色且跳过描边）
+        drawLeicaContent(canvas, renderParams, config.photoMetadata, outputWidth, height, bottomFrameHeight, bgColor, frameWidth, isSolidColorMode = true)
         
         return output
     }
@@ -308,8 +415,8 @@ class FrameComposer {
         // 中央清晰原图
         canvas.drawBitmap(source, frameWidth.toFloat(), frameWidth.toFloat(), null)
         
-        // 底部内容（使用封面原色计算文字颜色）
-        drawLeicaContent(canvas, renderParams, config.photoMetadata, outputWidth, height, bottomFrameHeight, dominantColor, frameWidth)
+        // 底部内容（纯色模式不需要文字描边，避免异色斑点）
+        drawLeicaContent(canvas, renderParams, config.photoMetadata, outputWidth, height, bottomFrameHeight, bgColor, frameWidth, isSolidColorMode = true)
         
         return output
     }
@@ -324,28 +431,85 @@ class FrameComposer {
         frameColor: Int,
         frameWidth: Int = 0,
         isMusicFlowMode: Boolean = false,
+        isSolidColorMode: Boolean = false,
         config: FrameConfig? = null
     ) {
-        val textColor = config?.let { invertedColor(it.getFrameColor(renderParams.frameColor.toInt(), forMusicFlow = isMusicFlowMode)) } ?: invertedColor(frameColor)
-        val subTextColor = (textColor and 0x00FFFFFF) or 0x99000000.toInt()
+        // 纯色模式和自定义色模式使用相框颜色的高对比色，徕卡模式使用反色
+        val textColor = if (isSolidColorMode || isMusicFlowMode) {
+            getHighContrastTextColor(frameColor)
+        } else {
+            invertedColor(frameColor)
+        }
+        val subTextColor = if (isSolidColorMode || isMusicFlowMode) {
+            // 纯色模式下副标题也使用高对比色，但降低不透明度
+            (textColor and 0x00FFFFFF) or 0xCC000000.toInt()
+        } else {
+            (textColor and 0x00FFFFFF) or 0x99000000.toInt()
+        }
         val bottomStartY = (frameWidth + height).toFloat()
         val centerX = width / 2f
         
-        // 地点信息
+        // 地点信息（显示在照片顶端中央，国家·省份·城市格式，带胶囊背景）
         photoMetadata?.locationText?.let { locationText ->
             if (locationText.isNotBlank() && frameWidth > 0) {
                 val topFrameCenterY = frameWidth.toFloat() / 2f
                 val locationPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    color = textColor
+                    color = 0xFFFFFFFF.toInt() // 白色文字
                     textSize = frameWidth.toFloat() * 0.35f
                     textAlign = Paint.Align.CENTER
+                    typeface = getBoldTypeface(config)
                 }
-                val textWidth = locationPaint.measureText(locationText)
+                
+                // 计算文字尺寸以绘制胶囊背景
+                val textBounds = android.graphics.Rect()
+                locationPaint.getTextBounds(locationText, 0, locationText.length, textBounds)
+                val textWidthPx = textBounds.width().toFloat()
+                val textHeightPx = textBounds.height().toFloat()
+                
+                // 限制最大宽度
                 val maxWidth = width.toFloat() - frameWidth * 4
-                if (textWidth > maxWidth) {
-                    locationPaint.textSize = locationPaint.textSize * (maxWidth / textWidth) * 0.95f
+                if (textWidthPx > maxWidth) {
+                    locationPaint.textSize = locationPaint.textSize * (maxWidth / textWidthPx) * 0.95f
+                    locationPaint.getTextBounds(locationText, 0, locationText.length, textBounds)
                 }
-                canvas.drawText(locationText, centerX, topFrameCenterY + locationPaint.textSize * 0.35f, locationPaint)
+                
+                // 胶囊背景参数
+                val paddingH = frameWidth.toFloat() * 0.12f
+                val paddingV = frameWidth.toFloat() * 0.06f
+                val cornerRadius = (textHeightPx + paddingV * 2) * 0.5f
+                val bgLeft = centerX - textWidthPx / 2 - paddingH
+                val bgTop = topFrameCenterY - textHeightPx - paddingV
+                val bgRight = centerX + textWidthPx / 2 + paddingH
+                val bgBottom = topFrameCenterY + paddingV
+                
+                // 确保背景不超出照片区域（照片在 frameWidth 开始）
+                val photoLeft = frameWidth.toFloat()
+                val photoTop = frameWidth.toFloat()
+                val adjustedBgLeft = maxOf(bgLeft, photoLeft - paddingH)
+                val adjustedBgRight = minOf(bgRight, (width - frameWidth).toFloat() + paddingH)
+                val adjustedBgTop = maxOf(bgTop, photoTop - paddingV)
+                
+                val bgRect = android.graphics.RectF(adjustedBgLeft, adjustedBgTop, adjustedBgRight, bgBottom)
+                
+                // 使用相框颜色的反色作为文字颜色，对比色作为背景
+                val textColor = getHighContrastTextColor(frameColor)
+                val bgColor = frameColor  // 背景使用相框原色
+                
+                // 文字使用高对比色
+                locationPaint.color = textColor
+                
+                // 绘制胶囊背景
+                val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = bgColor
+                    setShadowLayer(paddingV * 0.4f, 0f, -paddingV * 0.2f, 0x44000000.toInt())
+                }
+                canvas.drawRoundRect(bgRect, cornerRadius, cornerRadius, bgPaint)
+                
+                // 绘制文字（垂直居中于胶囊背景）
+                val textY = adjustedBgTop + (bgRect.height() + textHeightPx) / 2 - textBounds.bottom
+                canvas.drawText(locationText, centerX, textY, locationPaint)
+                
+                // 调试信息已关闭
             }
         }
         
@@ -359,9 +523,9 @@ class FrameComposer {
             textSize = frameHeight * 0.14f
             textAlign = Paint.Align.CENTER
             typeface = if (isMusicFlowMode) {
-                android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.ITALIC)
+                getItalicTypeface(config)
             } else {
-                android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                getBoldTypeface(config)
             }
         }
         val firstRowY = bottomStartY + frameHeight * 0.18f
@@ -374,7 +538,8 @@ class FrameComposer {
             }
             
             // 高级徕卡模式：为文字添加对比色描边（保护文字不受复杂照片颜色影响）
-            if (!isMusicFlowMode) {
+            // 纯色模式不需要描边，避免异色斑点
+            if (!isMusicFlowMode && !isSolidColorMode) {
                 val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     style = android.graphics.Paint.Style.STROKE
                     strokeWidth = musicPaint.textSize * 0.08f  // 描边宽度为文字大小的 8%
@@ -404,9 +569,9 @@ class FrameComposer {
             textSize = separatorHeight * 0.9f
             textAlign = Paint.Align.LEFT
             typeface = if (isMusicFlowMode) {
-                android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.ITALIC)
+                getMonoTypeface(config, Typeface.ITALIC)
             } else {
-                android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+                getMonoTypeface(config, Typeface.BOLD)
             }
         }
         
@@ -442,7 +607,8 @@ class FrameComposer {
             
             val playerX = separatorX + separatorWidth + actualIconGap
             // 高级徕卡模式使用对比色描边，音乐流光模式使用高对比度颜色
-            if (!isMusicFlowMode) {
+            // 纯色模式不需要描边，避免异色斑点
+            if (!isMusicFlowMode && !isSolidColorMode) {
                 // 为播放器信息文字添加对比色描边
                 val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     style = android.graphics.Paint.Style.STROKE
@@ -450,7 +616,7 @@ class FrameComposer {
                     color = invertColorForStroke(textColor)
                 }
                 canvas.drawText(playerText, playerX, secondRowCenterY, strokePaint)
-            } else {
+            } else if (isMusicFlowMode) {
                 playerPaint.color = getHighContrastTextColor(frameColor)
             }
             canvas.drawText(playerText, playerX, secondRowCenterY, playerPaint)
@@ -484,13 +650,14 @@ class FrameComposer {
                 textSize = separatorHeight * 0.7f
                 textAlign = Paint.Align.CENTER
                 typeface = if (isMusicFlowMode) {
-                    android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.ITALIC)
+                    getItalicTypeface(config)
                 } else {
-                    android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                    getBoldTypeface(config)
                 }
             }
             // 高级徕卡模式：为相机参数文字添加对比色描边
-            if (!isMusicFlowMode) {
+            // 纯色模式不需要描边，避免异色斑点
+            if (!isMusicFlowMode && !isSolidColorMode) {
                 val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     style = android.graphics.Paint.Style.STROKE
                     strokeWidth = infoPaint.textSize * 0.08f
@@ -518,9 +685,9 @@ class FrameComposer {
             textSize = separatorHeight * 0.7f
             textAlign = Paint.Align.CENTER
             typeface = if (isMusicFlowMode) {
-                android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.ITALIC)
+                getItalicTypeface(config)
             } else {
-                android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                getBoldTypeface(config)
             }
         }
         val timeY = infoY + separatorHeight * 1.2f
@@ -529,7 +696,8 @@ class FrameComposer {
             timePaint.color = getHighContrastTextColor(frameColor).let { color -> (color and 0x00FFFFFF) or 0xCC000000.toInt() }
         }
         // 高级徕卡模式：为时间戳文字添加对比色描边
-        if (!isMusicFlowMode) {
+        // 纯色模式不需要描边，避免异色斑点
+        if (!isMusicFlowMode && !isSolidColorMode) {
             val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = android.graphics.Paint.Style.STROKE
                 strokeWidth = timePaint.textSize * 0.08f
@@ -649,6 +817,162 @@ class FrameComposer {
         return (a shl 24) or (r.toInt() shl 16) or (g.toInt() shl 8) or b.toInt()
     }
     
+    private fun drawZodiacHoroscope(renderParams: DrawRenderParams, config: FrameConfig, musicMetadata: MusicMetadata?): Bitmap {
+        val source = renderParams.source
+        val width = source.width
+        val height = source.height
+        
+        val frameWidth = (min(width, height) * 0.12f).toInt()
+        val bottomFrameHeight = (height * 0.25f).toInt()
+        val outputWidth = width + frameWidth * 2
+        val outputHeight = height + frameWidth + bottomFrameHeight
+        
+        val output = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        
+        // 获取当前日期
+        val calendar = java.util.Calendar.getInstance()
+        val year = calendar.get(java.util.Calendar.YEAR)
+        val month = calendar.get(java.util.Calendar.MONTH) + 1
+        val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+        
+        // 计算运势
+        val horoscope = if (config.userBirthdayMonth > 0 && config.userBirthdayDay > 0) {
+            HoroscopeCalculator.getHoroscope(
+                birthdayMonth = config.userBirthdayMonth,
+                birthdayDay = config.userBirthdayDay,
+                year = year,
+                month = month,
+                day = day
+            )
+        } else {
+            // 没有设置生日时，使用默认（今天日期作为种子）
+            HoroscopeCalculator.getHoroscope(1, 1, year, month, day)
+        }
+        
+        // 运势颜色作为相框颜色
+        val frameColor = horoscope.fortuneColor
+        
+        // 1. 绘制背景
+        if (config.useDarkBackground) {
+            val darkBgPaint = Paint().apply { color = darkenColor(frameColor, 0.85f) }
+            canvas.drawRect(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat(), darkBgPaint)
+        }
+        
+        // 2. 绘制渐变边框
+        val gradientPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val gradient = LinearGradient(
+            0f, 0f, outputWidth.toFloat(), outputHeight.toFloat(),
+            intArrayOf(frameColor, darkenColor(frameColor, 0.3f), frameColor),
+            floatArrayOf(0f, 0.5f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        gradientPaint.shader = gradient
+        canvas.drawRect(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat(), gradientPaint)
+        
+        // 3. 中央清晰原图
+        canvas.drawBitmap(source, frameWidth.toFloat(), frameWidth.toFloat(), null)
+        
+        // 文字颜色（基于运势颜色计算）
+        val textColor = getFortuneTextColor(frameColor)
+        val subTextColor = (textColor and 0x00FFFFFF) or 0xAA000000.toInt()
+        
+        // 顶部：运势名称（替换原位置信息）
+        val topFrameCenterY = frameWidth.toFloat() / 2f
+        val fortuneText = "${horoscope.zodiacName} · ${horoscope.fortuneName}"
+        
+        val fortunePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = textColor
+            textSize = frameWidth.toFloat() * 0.32f
+            textAlign = Paint.Align.CENTER
+            typeface = getBoldTypeface(config)
+        }
+        
+        // 胶囊背景
+        val textBounds = android.graphics.Rect()
+        fortunePaint.getTextBounds(fortuneText, 0, fortuneText.length, textBounds)
+        val textWidthPx = textBounds.width().toFloat()
+        val textHeightPx = textBounds.height().toFloat()
+        val paddingH = frameWidth.toFloat() * 0.15f
+        val paddingV = frameWidth.toFloat() * 0.08f
+        val cornerRadius = (textHeightPx + paddingV * 2) * 0.5f
+        
+        val bgRect = android.graphics.RectF(
+            outputWidth / 2f - textWidthPx / 2 - paddingH,
+            topFrameCenterY - textHeightPx - paddingV,
+            outputWidth / 2f + textWidthPx / 2 + paddingH,
+            topFrameCenterY + paddingV
+        )
+        
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = frameColor
+            setShadowLayer(paddingV * 0.4f, 0f, -paddingV * 0.2f, 0x44000000.toInt())
+        }
+        canvas.drawRoundRect(bgRect, cornerRadius, cornerRadius, bgPaint)
+        
+        val textY = topFrameCenterY - paddingV * 0.3f
+        canvas.drawText(fortuneText, outputWidth / 2f, textY, fortunePaint)
+        
+        // 底部：运势行动建议（替换原音乐信息位置）
+        val bottomStartY = (frameWidth + height).toFloat()
+        val centerX = outputWidth / 2f
+        val actualBottomHeight = bottomFrameHeight.toFloat()
+        val frameCenterY = bottomStartY + actualBottomHeight / 2f
+        
+        // 运势行动建议
+        val actionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = textColor
+            textSize = actualBottomHeight * 0.12f
+            textAlign = Paint.Align.CENTER
+            typeface = getItalicTypeface(config)
+        }
+        
+        // 如果文字太长，分两行显示
+        val actionTip = horoscope.actionTip
+        val maxActionWidth = outputWidth - frameWidth * 4
+        val actionTextWidth = actionPaint.measureText(actionTip)
+        
+        if (actionTextWidth > maxActionWidth && actionTip.length > 10) {
+            // 尝试在中间断开
+            val halfLen = actionTip.length / 2
+            val breakPoint = actionTip.lastIndexOf('，', halfLen).takeIf { it > 5 }
+                ?: actionTip.lastIndexOf(' ', halfLen).takeIf { it > 5 }
+                ?: halfLen
+            val line1 = actionTip.substring(0, breakPoint)
+            val line2 = actionTip.substring(breakPoint)
+            val line1Width = actionPaint.measureText(line1)
+            if (line1Width <= maxActionWidth) {
+                canvas.drawText(line1, centerX, frameCenterY - actionPaint.textSize * 0.5f, actionPaint)
+                canvas.drawText(line2, centerX, frameCenterY + actionPaint.textSize * 0.8f, actionPaint)
+            } else {
+                canvas.drawText(actionTip, centerX, frameCenterY, actionPaint)
+            }
+        } else {
+            canvas.drawText(actionTip, centerX, frameCenterY, actionPaint)
+        }
+        
+        // 底部：日期（替换原设备信息位置）
+        val dateText = java.text.SimpleDateFormat("yyyy.MM.dd", java.util.Locale.getDefault()).format(java.util.Date())
+        val datePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = subTextColor
+            textSize = actualBottomHeight * 0.09f
+            textAlign = Paint.Align.CENTER
+        }
+        canvas.drawText(dateText, centerX, bottomStartY + actualBottomHeight * 0.78f, datePaint)
+        
+        // 底部：今日幸运色（替换原时间戳位置）
+        val luckyColorHex = String.format("#%06X", horoscope.luckyColor and 0xFFFFFF)
+        val luckyText = "幸运色: $luckyColorHex"
+        val luckyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = subTextColor
+            textSize = actualBottomHeight * 0.09f
+            textAlign = Paint.Align.CENTER
+        }
+        canvas.drawText(luckyText, centerX, bottomStartY + actualBottomHeight * 0.92f, luckyPaint)
+        
+        return output
+    }
+
     private fun darkenColor(color: Int, factor: Float): Int {
         val hsv = FloatArray(3)
         android.graphics.Color.colorToHSV(color, hsv)
@@ -661,6 +985,14 @@ class FrameComposer {
         android.graphics.Color.colorToHSV(color, hsv)
         hsv[2] = (hsv[2] + (1f - hsv[2]) * factor).coerceIn(0f, 1f)
         return android.graphics.Color.HSVToColor(hsv)
+    }
+    
+    private fun getFortuneTextColor(backgroundColor: Int): Int {
+        val r = android.graphics.Color.red(backgroundColor)
+        val g = android.graphics.Color.green(backgroundColor)
+        val b = android.graphics.Color.blue(backgroundColor)
+        val luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+        return if (luminance > 0.5) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()
     }
 }
 

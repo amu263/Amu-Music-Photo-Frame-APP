@@ -49,3 +49,7 @@ test-*.py
 # Kotlin
 .kotlin/
 app/debug/
+# Release keystore
+*.jks
+*.keystore
+keystore.properties

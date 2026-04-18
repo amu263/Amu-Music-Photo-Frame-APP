@@ -7,18 +7,24 @@ plugins {
 
 android {
     namespace = "com.example.musicframe"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.musicframe"
         minSdk = 26
         targetSdk = 35
-        versionCode = 30
-        versionName = "1.0.30"
+        versionCode = 37
+        versionName = "1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            // 使用 debug 签名构建 release
         }
     }
 
@@ -28,6 +34,8 @@ android {
             versionNameSuffix = ".debug"
         }
         release {
+            // 使用 debug 签名构建 release（临时方案）
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -49,10 +57,6 @@ android {
         compose = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.11"
-    }
-
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -64,15 +68,15 @@ android {
         variant.outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
             val appName = "AMuPtoFrame"
-            val version = variant.versionName
-            val buildType = variant.buildType.name
+            val version = variant.versionName?.replace(".debug", "") ?: "1.4"
+            val buildType = variant.buildType.name.lowercase()
             output.outputFileName = "${appName}-v${version}-${buildType}.apk"
         }
     }
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2025.01.00")
+    val composeBom = platform("androidx.compose:compose-bom:2025.02.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
@@ -85,6 +89,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3:1.3.1")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("com.google.android.material:material:1.12.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("androidx.palette:palette-ktx:1.0.0")

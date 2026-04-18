@@ -10,7 +10,10 @@ data class FrameConfig(
     val headphoneTextColor: Int? = null,
     val typeface: android.graphics.Typeface? = null,
     val photoMetadata: PhotoMetadata? = null,
-    val useDarkBackground: Boolean = false
+    val useDarkBackground: Boolean = false,
+    // 星座运势模式 - 用户生日
+    val userBirthdayMonth: Int = 0,
+    val userBirthdayDay: Int = 0
 ) {
     fun headphoneColor(default: Int): Int = headphoneTextColor ?: default
     
@@ -70,7 +73,8 @@ enum class FrameMode {
     PREMIUM_LEICA,
     CUSTOM_LEICA,
     MUSIC_FLOW,
-    MUSIC_SOLID
+    MUSIC_SOLID,
+    ZODIAC_HOROSCOPE
 }
 
 const val MIN_TEXT_SCALE = 0.6f
