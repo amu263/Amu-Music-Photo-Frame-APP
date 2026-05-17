@@ -105,12 +105,14 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.musicframe.domain.model.FrameControlAction
+import com.example.musicframe.image.FilmGradingEngine.FilmPreset
 import com.example.musicframe.image.FrameMode
 import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.image.PhotoMetadataReader
 import com.example.musicframe.media.MusicMetadataBroadcaster
 import com.example.musicframe.media.NowPlayingListenerService
 import com.example.musicframe.ui.screen.exportFormatSelector
+import com.example.musicframe.ui.screen.filmGradingPanel
 import com.example.musicframe.ui.screen.frameControls
 import com.example.musicframe.ui.theme.musicFrameTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -480,6 +482,20 @@ fun musicFrameScreen(
                     is FrameControlAction.SetMode -> viewModel.updateFrameMode(action.mode)
                 }
             }
+        )
+
+        // 电影调色面板
+        filmGradingPanel(
+            config = state.gradingConfig,
+            isExpanded = state.gradingExpanded,
+            onToggleExpand = { viewModel.toggleGradingPanel() },
+            onPresetSelect = { viewModel.selectGradingPreset(it) },
+            onIntensityChange = { viewModel.updateGradingIntensity(it) },
+            onGrainChange = { viewModel.updateGrainAmount(it) },
+            onVignetteChange = { viewModel.updateVignetteStrength(it) },
+            onBrightnessChange = { viewModel.updateBrightness(it) },
+            onContrastChange = { viewModel.updateContrast(it) },
+            onSaturationChange = { viewModel.updateSaturation(it) }
         )
 
         // 星座运势模式 - 生日输入（仅在选中星座模式时显示）

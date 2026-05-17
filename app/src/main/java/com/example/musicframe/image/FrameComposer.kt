@@ -103,13 +103,16 @@ class FrameComposer {
             config = config
         )
         
-        return when (config.frameMode) {
+        val framed = when (config.frameMode) {
             FrameMode.PREMIUM_LEICA -> drawPremiumLeica(renderParams, config, musicMetadata)
             FrameMode.CUSTOM_LEICA -> drawCustomLeica(renderParams, config, musicMetadata)
             FrameMode.MUSIC_FLOW -> drawMusicFlow(renderParams, config, musicMetadata)
             FrameMode.MUSIC_SOLID -> drawMusicSolid(renderParams, config, musicMetadata)
             FrameMode.ZODIAC_HOROSCOPE -> drawZodiacHoroscope(renderParams, config, musicMetadata)
         }
+        
+        // 电影调色管线
+        return FilmGradingEngine.applyGrading(framed, config.gradingConfig)
     }
 
     private fun drawPremiumLeica(renderParams: DrawRenderParams, config: FrameConfig, musicMetadata: MusicMetadata?): Bitmap {

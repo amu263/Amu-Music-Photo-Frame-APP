@@ -20,6 +20,8 @@ import com.example.musicframe.export.ImageExporter
 import com.example.musicframe.export.ImageExporter.MotionPhotoInfo
 import com.example.musicframe.image.FrameComposer
 import com.example.musicframe.image.FrameConfig
+import com.example.musicframe.image.FilmGradingEngine.FilmPreset
+import com.example.musicframe.image.FilmGradingEngine.GradingConfig
 import com.example.musicframe.image.FrameMode
 import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.image.PhotoMetadataReader
@@ -280,6 +282,63 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         rebuildFrame()
     }
 
+    // ═══ 电影调色 ═══
+    fun selectGradingPreset(preset: FilmPreset) {
+        _uiState.update {
+            val newConfig = it.gradingConfig.copy(preset = preset)
+            it.copy(gradingConfig = newConfig)
+        }
+        rebuildFrame()
+    }
+
+    fun updateGradingIntensity(intensity: Float) {
+        _uiState.update {
+            it.copy(gradingConfig = it.gradingConfig.copy(intensity = intensity))
+        }
+        rebuildFrame()
+    }
+
+    fun updateGrainAmount(amount: Float) {
+        _uiState.update {
+            it.copy(gradingConfig = it.gradingConfig.copy(grainAmount = amount))
+        }
+        rebuildFrame()
+    }
+
+    fun updateVignetteStrength(strength: Float) {
+        _uiState.update {
+            it.copy(gradingConfig = it.gradingConfig.copy(vignetteStrength = strength))
+        }
+        rebuildFrame()
+    }
+
+    fun updateBrightness(value: Float) {
+        _uiState.update {
+            it.copy(gradingConfig = it.gradingConfig.copy(brightness = value))
+        }
+        rebuildFrame()
+    }
+
+    fun updateContrast(value: Float) {
+        _uiState.update {
+            it.copy(gradingConfig = it.gradingConfig.copy(contrast = value))
+        }
+        rebuildFrame()
+    }
+
+    fun updateSaturation(value: Float) {
+        _uiState.update {
+            it.copy(gradingConfig = it.gradingConfig.copy(saturation = value))
+        }
+        rebuildFrame()
+    }
+
+    fun toggleGradingPanel() {
+        _uiState.update {
+            it.copy(gradingExpanded = !it.gradingExpanded)
+        }
+    }
+
     fun saveFramedImage() {
         val bitmap = _uiState.value.framedBitmap ?: return
         val format = _uiState.value.exportFormat
@@ -365,7 +424,8 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
                 photoMetadata = state.photoMetadata,
                 useDarkBackground = state.useDarkBackground,
                 userBirthdayMonth = state.userBirthdayMonth,
-                userBirthdayDay = state.userBirthdayDay
+                userBirthdayDay = state.userBirthdayDay,
+                gradingConfig = state.gradingConfig
             )
             val framed = frameComposer.compose(
                 source = source,

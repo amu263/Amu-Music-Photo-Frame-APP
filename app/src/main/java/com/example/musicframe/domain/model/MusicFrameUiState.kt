@@ -5,7 +5,8 @@ import android.graphics.Typeface
 import android.net.Uri
 import com.example.musicframe.export.ImageExporter
 import com.example.musicframe.image.FrameMode
-import com.example.musicframe.image.MIN_TEXT_SCALE
+import com.example.musicframe.image.FilmGradingEngine.FilmPreset
+import com.example.musicframe.image.FilmGradingEngine.GradingConfig
 import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.model.HeadphoneInfo
 import com.example.musicframe.model.MusicMetadata
@@ -33,7 +34,10 @@ data class MusicFrameUiState(
     val userHeadphoneTextColor: Int? = null,
     // 星座运势模式 - 用户生日
     val userBirthdayMonth: Int = 0,
-    val userBirthdayDay: Int = 0
+    val userBirthdayDay: Int = 0,
+    // 电影调色
+    val gradingConfig: GradingConfig = GradingConfig(),
+    val gradingExpanded: Boolean = false
 )
 
 enum class FrameColorMode {

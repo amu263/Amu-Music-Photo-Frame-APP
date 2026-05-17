@@ -1,6 +1,7 @@
 package com.example.musicframe.image
 
 import com.example.musicframe.domain.model.FrameColorMode
+import com.example.musicframe.image.FilmGradingEngine.GradingConfig
 
 data class FrameConfig(
     val frameMode: FrameMode = FrameMode.PREMIUM_LEICA,
@@ -13,7 +14,8 @@ data class FrameConfig(
     val useDarkBackground: Boolean = false,
     // 星座运势模式 - 用户生日
     val userBirthdayMonth: Int = 0,
-    val userBirthdayDay: Int = 0
+    val userBirthdayDay: Int = 0,
+    val gradingConfig: GradingConfig = GradingConfig()
 ) {
     fun headphoneColor(default: Int): Int = headphoneTextColor ?: default
     
