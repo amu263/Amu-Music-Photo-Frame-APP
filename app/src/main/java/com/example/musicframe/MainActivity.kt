@@ -112,7 +112,12 @@ import com.example.musicframe.media.MusicMetadataBroadcaster
 import com.example.musicframe.media.NowPlayingListenerService
 import com.example.musicframe.ui.screen.exportFormatSelector
 import com.example.musicframe.ui.screen.frameControls
-import com.example.musicframe.ui.components.ThemeToggleBar
+import com.example.musicframe.ui.screen.canvasControlsPanel
+import com.example.musicframe.image.AspectRatio
+import com.example.musicframe.image.CropAlignment
+import com.example.musicframe.image.LayoutTemplate
+import com.example.musicframe.image.TemplateConfig
+import androidx.compose.material3.OutlinedTextField
 import com.example.musicframe.ui.theme.GlassTheme
 import com.example.musicframe.ui.theme.glassTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -420,16 +425,12 @@ fun musicFrameScreen(
             .fillMaxSize()
             .navigationBarsPadding()
             .verticalScroll(scrollState)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // 顶部标题
         topBar()
-        
-        // 主题切换
-        ThemeToggleBar()
-        
-        // 图片预览卡片
+                // 图片预览卡片
         imagePreviewCard(
             bitmap = state.framedBitmap,
             selectedImageUri = state.selectedImageUri,
@@ -486,6 +487,54 @@ fun musicFrameScreen(
                 }
             }
         )
+
+        // 自定义位置开关
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("自定义位置", style = MaterialTheme.typography.labelMedium)
+            Switch(
+                checked = state.useCustomLocation,
+                onCheckedChange = { viewModel.setUseCustomLocation(it) }
+            )
+        }
+
+        if (state.useCustomLocation) {
+            OutlinedTextField(
+                value = state.customLocationText,
+                onValueChange = { viewModel.setCustomLocationText(it) },
+                placeholder = { Text("输入自定义位置…", style = MaterialTheme.typography.bodySmall) },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        // 画幅与构图
+        canvasControlsPanel(
+            config = state.canvasConfig,
+            isExpanded = state.canvasExpanded,
+            onToggleExpand = { viewModel.toggleCanvasPanel() },
+            onAspectRatioSelect = { viewModel.selectAspectRatio(it) },
+            onPaddingChange = { viewModel.updatePadding(it) },
+            onCropAlignmentSelect = { viewModel.selectCropAlignment(it) },
+            onCustomRatioW = { viewModel.updateCustomRatioW(it) },
+            onCustomRatioH = { viewModel.updateCustomRatioH(it) }
+        )
+
+        // 模板选择（仅在模板模式时显示）
+        if (state.frameMode == FrameMode.TEMPLATE) {
+            templateSelectorCard(
+                config = state.templateConfig,
+                isExpanded = state.templateExpanded,
+                onToggleExpand = { viewModel.toggleTemplatePanel() },
+                onSelect = { viewModel.selectTemplate(it) }
+            )
+        }
 
         // 星座运势模式 - 生日输入（仅在选中星座模式时显示）
         if (state.frameMode == FrameMode.ZODIAC_HOROSCOPE) {
@@ -567,7 +616,7 @@ fun musicFrameScreen(
             onDismissRequest = { showLegacyPickerDialog = false },
             title = { Text("选择图片") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("请选择图片来源：")
                     Button(
                         onClick = {
@@ -1072,7 +1121,7 @@ private fun birthdayInputCard(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = "🎂 设置生日以获取专属星座运势",
@@ -1200,5 +1249,47 @@ private fun getZodiacInfo(month: Int, day: Int): String {
         doy >= 295 && doy < 326 -> "天蝎座"
         doy >= 326 && doy < 356 -> "射手座"
         else -> "白羊座"
+    }
+}
+
+@Composable
+private fun templateSelectorCard(
+    config: TemplateConfig,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onSelect: (LayoutTemplate) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onToggleExpand),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("📐 排版模板", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(if (isExpanded) "▲" else "▼", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (isExpanded) {
+                Spacer(Modifier.height(8.dp))
+                LayoutTemplate.entries.forEach { tmpl ->
+                    val sel = config.template == tmpl
+                    Box(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                            .background(if (sel) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent)
+                            .border(1.dp, if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                            .clickable { onSelect(tmpl) }.padding(vertical = 10.dp, horizontal = 12.dp)
+                    ) {
+                        Text("${tmpl.emoji} ${tmpl.label}", style = MaterialTheme.typography.bodyMedium,
+                            color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                }
+            }
+        }
     }
 }

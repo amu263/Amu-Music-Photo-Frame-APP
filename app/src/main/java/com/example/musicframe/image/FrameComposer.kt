@@ -89,8 +89,11 @@ class FrameComposer {
         val headphoneIcon = if (headphoneLines.isNotEmpty()) createHeadphoneIcon(invertedColor(frameColor)) else null
         val badgeIcon = musicMetadata?.appIcon ?: headphoneIcon
         
+        // 画幅裁剪
+        val processedSource = cropToAspectRatio(source, config.canvasConfig)
+        
         val renderParams = DrawRenderParams(
-            source = source,
+            source = processedSource,
             musicLines = musicLines,
             photoLines = emptyList(),
             headphoneLines = headphoneLines,
@@ -103,13 +106,60 @@ class FrameComposer {
             config = config
         )
         
-        return when (config.frameMode) {
+        val framed = when (config.frameMode) {
             FrameMode.PREMIUM_LEICA -> drawPremiumLeica(renderParams, config, musicMetadata)
             FrameMode.CUSTOM_LEICA -> drawCustomLeica(renderParams, config, musicMetadata)
             FrameMode.MUSIC_FLOW -> drawMusicFlow(renderParams, config, musicMetadata)
             FrameMode.MUSIC_SOLID -> drawMusicSolid(renderParams, config, musicMetadata)
             FrameMode.ZODIAC_HOROSCOPE -> drawZodiacHoroscope(renderParams, config, musicMetadata)
+            FrameMode.TEMPLATE -> TemplateLayoutRenderer.render(processedSource, config, config.templateConfig, musicMetadata, config.photoMetadata)
         }
+        
+        // 清理裁剪临时图
+        if (processedSource !== source) processedSource.recycle()
+        return framed
+    }
+
+    private fun cropToAspectRatio(source: Bitmap, config: CanvasConfig): Bitmap {
+        val srcRatio = source.width.toFloat() / source.height.toFloat()
+        val targetRatio = config.effectiveRatio
+        if (kotlin.math.abs(srcRatio - targetRatio) < 0.01f && config.paddingPercent == 0f) return source
+        
+        var cropped = when {
+            srcRatio > targetRatio -> {
+                val cropW = (source.height * targetRatio).toInt().coerceAtLeast(1)
+                val x = when (config.cropAlignment) {
+                    CropAlignment.CENTER, CropAlignment.TOP, CropAlignment.BOTTOM -> (source.width - cropW) / 2
+                    CropAlignment.LEFT, CropAlignment.TOP_LEFT, CropAlignment.BOTTOM_LEFT -> 0
+                    CropAlignment.RIGHT, CropAlignment.TOP_RIGHT, CropAlignment.BOTTOM_RIGHT -> source.width - cropW
+                    CropAlignment.FACE -> ((source.width - cropW) * 2 / 5).coerceIn(0, source.width - cropW)
+                }
+                Bitmap.createBitmap(source, x, 0, cropW, source.height)
+            }
+            else -> {
+                val cropH = (source.width / targetRatio).toInt().coerceAtLeast(1)
+                val y = when (config.cropAlignment) {
+                    CropAlignment.CENTER, CropAlignment.LEFT, CropAlignment.RIGHT -> (source.height - cropH) / 2
+                    CropAlignment.TOP, CropAlignment.TOP_LEFT, CropAlignment.TOP_RIGHT -> 0
+                    CropAlignment.BOTTOM, CropAlignment.BOTTOM_LEFT, CropAlignment.BOTTOM_RIGHT -> source.height - cropH
+                    CropAlignment.FACE -> ((source.height - cropH) / 4).coerceIn(0, source.height - cropH)
+                }
+                Bitmap.createBitmap(source, 0, y, source.width, cropH)
+            }
+        }
+        
+        // 内边距
+        if (config.paddingPercent > 0f) {
+            val padW = (cropped.width * config.paddingPercent).toInt().coerceAtLeast(0)
+            val padH = (cropped.height * config.paddingPercent).toInt().coerceAtLeast(0)
+            val padded = Bitmap.createBitmap(cropped.width, cropped.height, Bitmap.Config.ARGB_8888)
+            val c = android.graphics.Canvas(padded)
+            c.drawBitmap(cropped, null,
+                android.graphics.Rect(padW, padH, cropped.width - padW, cropped.height - padH), null)
+            if (cropped !== source) cropped.recycle()
+            return padded
+        }
+        return cropped
     }
 
     private fun drawPremiumLeica(renderParams: DrawRenderParams, config: FrameConfig, musicMetadata: MusicMetadata?): Bitmap {
@@ -258,8 +308,9 @@ class FrameComposer {
         val timeY = infoY + separatorHeight * 1.2f
         canvas.drawText(timeText, centerX, timeY, timePaint)
         
-        // 地点信息（显示在照片顶端中央，国家·省份·城市格式）
-    val locationText = config.photoMetadata?.locationText
+        // 地点信息（优先自定义文字 > 照片位置 > GPS坐标）
+    val locationText = if (config.customLocationText.isNotBlank()) config.customLocationText
+                       else config.photoMetadata?.locationText
     val lat = config.photoMetadata?.latitude
     val lon = config.photoMetadata?.longitude
     
@@ -450,8 +501,10 @@ class FrameComposer {
         val centerX = width / 2f
         
         // 地点信息（显示在照片顶端中央，国家·省份·城市格式，带胶囊背景）
-        photoMetadata?.locationText?.let { locationText ->
-            if (locationText.isNotBlank() && frameWidth > 0) {
+        val locationText = if (config?.customLocationText.isNullOrBlank() == false) config.customLocationText
+                       else photoMetadata?.locationText
+        locationText?.let { loc ->
+            if (loc.isNotBlank() && frameWidth > 0) {
                 val topFrameCenterY = frameWidth.toFloat() / 2f
                 val locationPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = 0xFFFFFFFF.toInt() // 白色文字
@@ -462,7 +515,7 @@ class FrameComposer {
                 
                 // 计算文字尺寸以绘制胶囊背景
                 val textBounds = android.graphics.Rect()
-                locationPaint.getTextBounds(locationText, 0, locationText.length, textBounds)
+                locationPaint.getTextBounds(loc, 0, loc.length, textBounds)
                 val textWidthPx = textBounds.width().toFloat()
                 val textHeightPx = textBounds.height().toFloat()
                 
@@ -470,7 +523,7 @@ class FrameComposer {
                 val maxWidth = width.toFloat() - frameWidth * 4
                 if (textWidthPx > maxWidth) {
                     locationPaint.textSize = locationPaint.textSize * (maxWidth / textWidthPx) * 0.95f
-                    locationPaint.getTextBounds(locationText, 0, locationText.length, textBounds)
+                    locationPaint.getTextBounds(loc, 0, loc.length, textBounds)
                 }
                 
                 // 胶囊背景参数

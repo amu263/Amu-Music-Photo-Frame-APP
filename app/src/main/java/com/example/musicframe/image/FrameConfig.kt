@@ -13,7 +13,10 @@ data class FrameConfig(
     val useDarkBackground: Boolean = false,
     // 星座运势模式 - 用户生日
     val userBirthdayMonth: Int = 0,
-    val userBirthdayDay: Int = 0
+    val userBirthdayDay: Int = 0,
+    val canvasConfig: CanvasConfig = CanvasConfig(),
+    val templateConfig: TemplateConfig = TemplateConfig(),
+    val customLocationText: String = ""
 ) {
     fun headphoneColor(default: Int): Int = headphoneTextColor ?: default
     
@@ -212,7 +215,8 @@ enum class FrameMode {
     CUSTOM_LEICA,
     MUSIC_FLOW,
     MUSIC_SOLID,
-    ZODIAC_HOROSCOPE
+    ZODIAC_HOROSCOPE,
+    TEMPLATE
 }
 
 const val MIN_TEXT_SCALE = 0.6f

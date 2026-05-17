@@ -21,6 +21,10 @@ import com.example.musicframe.export.ImageExporter.MotionPhotoInfo
 import com.example.musicframe.image.FrameComposer
 import com.example.musicframe.image.FrameConfig
 import com.example.musicframe.image.FrameMode
+import com.example.musicframe.image.AspectRatio
+import com.example.musicframe.image.CropAlignment
+import com.example.musicframe.image.LayoutTemplate
+import com.example.musicframe.image.TemplateConfig
 import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.image.PhotoMetadataReader
 import com.example.musicframe.media.HeadphoneInfoRepository
@@ -278,6 +282,17 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
     fun setDarkBackground(enabled: Boolean) {
         _uiState.update { it.copy(useDarkBackground = enabled) }
         rebuildFrame()
+    // ═══ 画幅 + 模板 + 自定义位置 ═══
+    fun selectAspectRatio(ratio: AspectRatio) { _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(aspectRatio = ratio)) }; rebuildFrame() }
+    fun updatePadding(pct: Float) { _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(paddingPercent = pct)) }; rebuildFrame() }
+    fun selectCropAlignment(align: CropAlignment) { _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(cropAlignment = align)) }; rebuildFrame() }
+    fun updateCustomRatioW(w: Int) { _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(customRatioW = w)) }; rebuildFrame() }
+    fun updateCustomRatioH(h: Int) { _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(customRatioH = h)) }; rebuildFrame() }
+    fun toggleCanvasPanel() { _uiState.update { it.copy(canvasExpanded = !it.canvasExpanded) } }
+    fun selectTemplate(tmpl: LayoutTemplate) { _uiState.update { it.copy(templateConfig = it.templateConfig.copy(template = tmpl)) }; rebuildFrame() }
+    fun toggleTemplatePanel() { _uiState.update { it.copy(templateExpanded = !it.templateExpanded) } }
+    fun setCustomLocationText(text: String) { _uiState.update { it.copy(customLocationText = text) }; rebuildFrame() }
+    fun setUseCustomLocation(enabled: Boolean) { _uiState.update { it.copy(useCustomLocation = enabled) }; rebuildFrame() }
     }
 
     fun saveFramedImage() {
@@ -365,7 +380,10 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
                 photoMetadata = state.photoMetadata,
                 useDarkBackground = state.useDarkBackground,
                 userBirthdayMonth = state.userBirthdayMonth,
-                userBirthdayDay = state.userBirthdayDay
+                userBirthdayDay = state.userBirthdayDay,
+                canvasConfig = state.canvasConfig,
+                templateConfig = state.templateConfig,
+                customLocationText = if (state.useCustomLocation) state.customLocationText else ""
             )
             val framed = frameComposer.compose(
                 source = source,
