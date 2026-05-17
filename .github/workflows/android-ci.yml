@@ -3,6 +3,7 @@ name: Android CI
 on:
   push:
     branches: ["main", "feat/*", "fix/*"]
+    tags: ["v*"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -58,3 +59,32 @@ jobs:
         with:
           name: amu-ptoframe-release
           path: app/build/outputs/apk/release/*.apk
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: amu-ptoframe-debug
+          path: apks/
+
+      - name: Download Release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: amu-ptoframe-release
+          path: apks/
+
+      - name: Create Release & Upload APKs
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }} — 音乐封面采样颜色算法全面升级 🎨
+          files: apks/*.apk
+          generate_release_notes: true
+          draft: false
+          prerelease: false
