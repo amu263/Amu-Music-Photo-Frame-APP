@@ -105,11 +105,15 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.musicframe.domain.model.FrameControlAction
+import com.example.musicframe.image.AspectRatio
+import com.example.musicframe.image.CropAlignment
 import com.example.musicframe.image.FrameMode
+import com.example.musicframe.image.GridType
 import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.image.PhotoMetadataReader
 import com.example.musicframe.media.MusicMetadataBroadcaster
 import com.example.musicframe.media.NowPlayingListenerService
+import com.example.musicframe.ui.screen.canvasControlsPanel
 import com.example.musicframe.ui.screen.exportFormatSelector
 import com.example.musicframe.ui.screen.frameControls
 import com.example.musicframe.ui.theme.musicFrameTheme
@@ -480,6 +484,19 @@ fun musicFrameScreen(
                     is FrameControlAction.SetMode -> viewModel.updateFrameMode(action.mode)
                 }
             }
+        )
+
+        // 画幅控制面板
+        canvasControlsPanel(
+            config = state.canvasConfig,
+            isExpanded = state.canvasExpanded,
+            onToggleExpand = { viewModel.toggleCanvasPanel() },
+            onAspectRatioSelect = { viewModel.selectAspectRatio(it) },
+            onPaddingChange = { viewModel.updatePadding(it) },
+            onGridSelect = { viewModel.selectGrid(it) },
+            onCropAlignmentSelect = { viewModel.selectCropAlignment(it) },
+            onCustomRatioW = { viewModel.updateCustomRatioW(it) },
+            onCustomRatioH = { viewModel.updateCustomRatioH(it) }
         )
 
         // 星座运势模式 - 生日输入（仅在选中星座模式时显示）

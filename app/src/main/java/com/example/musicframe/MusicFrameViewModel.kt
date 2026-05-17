@@ -20,7 +20,11 @@ import com.example.musicframe.export.ImageExporter
 import com.example.musicframe.export.ImageExporter.MotionPhotoInfo
 import com.example.musicframe.image.FrameComposer
 import com.example.musicframe.image.FrameConfig
+import com.example.musicframe.image.AspectRatio
+import com.example.musicframe.image.CanvasConfig
+import com.example.musicframe.image.CropAlignment
 import com.example.musicframe.image.FrameMode
+import com.example.musicframe.image.GridType
 import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.image.PhotoMetadataReader
 import com.example.musicframe.media.HeadphoneInfoRepository
@@ -280,6 +284,35 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         rebuildFrame()
     }
 
+    // ═══ 画幅系统 ═══
+    fun selectAspectRatio(ratio: AspectRatio) {
+        _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(aspectRatio = ratio)) }
+        rebuildFrame()
+    }
+    fun updatePadding(pct: Float) {
+        _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(paddingPercent = pct)) }
+        rebuildFrame()
+    }
+    fun selectGrid(grid: GridType) {
+        _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(gridType = grid)) }
+        rebuildFrame()
+    }
+    fun selectCropAlignment(align: CropAlignment) {
+        _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(cropAlignment = align)) }
+        rebuildFrame()
+    }
+    fun updateCustomRatioW(w: Int) {
+        _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(customRatioW = w)) }
+        rebuildFrame()
+    }
+    fun updateCustomRatioH(h: Int) {
+        _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(customRatioH = h)) }
+        rebuildFrame()
+    }
+    fun toggleCanvasPanel() {
+        _uiState.update { it.copy(canvasExpanded = !it.canvasExpanded) }
+    }
+
     fun saveFramedImage() {
         val bitmap = _uiState.value.framedBitmap ?: return
         val format = _uiState.value.exportFormat
@@ -365,7 +398,8 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
                 photoMetadata = state.photoMetadata,
                 useDarkBackground = state.useDarkBackground,
                 userBirthdayMonth = state.userBirthdayMonth,
-                userBirthdayDay = state.userBirthdayDay
+                userBirthdayDay = state.userBirthdayDay,
+                canvasConfig = state.canvasConfig
             )
             val framed = frameComposer.compose(
                 source = source,

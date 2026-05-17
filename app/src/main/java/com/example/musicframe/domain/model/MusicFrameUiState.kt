@@ -5,7 +5,7 @@ import android.graphics.Typeface
 import android.net.Uri
 import com.example.musicframe.export.ImageExporter
 import com.example.musicframe.image.FrameMode
-import com.example.musicframe.image.MIN_TEXT_SCALE
+import com.example.musicframe.image.CanvasConfig
 import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.model.HeadphoneInfo
 import com.example.musicframe.model.MusicMetadata
@@ -33,7 +33,10 @@ data class MusicFrameUiState(
     val userHeadphoneTextColor: Int? = null,
     // 星座运势模式 - 用户生日
     val userBirthdayMonth: Int = 0,
-    val userBirthdayDay: Int = 0
+    val userBirthdayDay: Int = 0,
+    // 画幅系统
+    val canvasConfig: CanvasConfig = CanvasConfig(),
+    val canvasExpanded: Boolean = false
 )
 
 enum class FrameColorMode {

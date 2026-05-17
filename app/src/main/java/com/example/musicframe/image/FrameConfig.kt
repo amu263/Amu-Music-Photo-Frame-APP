@@ -13,7 +13,8 @@ data class FrameConfig(
     val useDarkBackground: Boolean = false,
     // 星座运势模式 - 用户生日
     val userBirthdayMonth: Int = 0,
-    val userBirthdayDay: Int = 0
+    val userBirthdayDay: Int = 0,
+    val canvasConfig: CanvasConfig = CanvasConfig()
 ) {
     fun headphoneColor(default: Int): Int = headphoneTextColor ?: default
     

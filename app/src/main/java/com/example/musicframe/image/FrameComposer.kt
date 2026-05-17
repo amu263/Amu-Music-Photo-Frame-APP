@@ -89,8 +89,11 @@ class FrameComposer {
         val headphoneIcon = if (headphoneLines.isNotEmpty()) createHeadphoneIcon(invertedColor(frameColor)) else null
         val badgeIcon = musicMetadata?.appIcon ?: headphoneIcon
         
+        // 画幅系统：按目标比例裁剪原图
+        val processedSource = cropToAspectRatio(source, config.canvasConfig)
+        
         val renderParams = DrawRenderParams(
-            source = source,
+            source = processedSource,
             musicLines = musicLines,
             photoLines = emptyList(),
             headphoneLines = headphoneLines,
@@ -103,12 +106,67 @@ class FrameComposer {
             config = config
         )
         
-        return when (config.frameMode) {
+        val result = when (config.frameMode) {
             FrameMode.PREMIUM_LEICA -> drawPremiumLeica(renderParams, config, musicMetadata)
             FrameMode.CUSTOM_LEICA -> drawCustomLeica(renderParams, config, musicMetadata)
             FrameMode.MUSIC_FLOW -> drawMusicFlow(renderParams, config, musicMetadata)
             FrameMode.MUSIC_SOLID -> drawMusicSolid(renderParams, config, musicMetadata)
             FrameMode.ZODIAC_HOROSCOPE -> drawZodiacHoroscope(renderParams, config, musicMetadata)
+        }
+        
+        // 网格辅助线
+        return if (config.canvasConfig.showGridOverlay && config.canvasConfig.gridType != GridType.NONE) {
+            SmartCropEngine.drawGridOverlay(result, config.canvasConfig.gridType)
+        } else result
+    }
+
+    /** 按目标比例裁剪原图 */
+    private fun cropToAspectRatio(source: Bitmap, config: CanvasConfig): Bitmap {
+        val srcRatio = source.width.toFloat() / source.height.toFloat()
+        val targetRatio = config.effectiveRatio
+        
+        if (kotlin.math.abs(srcRatio - targetRatio) < 0.01f && config.aspectRatio == AspectRatio.RATIO_1_1) {
+            return source // 无需裁剪
+        }
+        
+        val layout = SmartCropEngine.calculateLayout(
+            sourceWidth = source.width,
+            sourceHeight = source.height,
+            config = config
+        )
+        
+        val cropW = layout.imageDisplayWidth
+        val cropH = layout.imageDisplayHeight
+        val cropX = layout.imageOffsetX
+        val cropY = layout.imageOffsetY
+        
+        // 需要重算实际裁剪区域
+        // SmartCropEngine 已经计算了偏移，这里我们需要从原图裁剪
+        return when {
+            srcRatio > targetRatio -> {
+                val actualCropW = (source.height * targetRatio).toInt().coerceAtLeast(1)
+                val x = when (config.cropAlignment) {
+                    CropAlignment.CENTER, CropAlignment.TOP, CropAlignment.BOTTOM ->
+                        (source.width - actualCropW) / 2
+                    CropAlignment.LEFT, CropAlignment.TOP_LEFT, CropAlignment.BOTTOM_LEFT -> 0
+                    CropAlignment.RIGHT, CropAlignment.TOP_RIGHT, CropAlignment.BOTTOM_RIGHT ->
+                        source.width - actualCropW
+                    CropAlignment.FACE -> (source.width - actualCropW) * 2 / 5
+                }.coerceIn(0, source.width - actualCropW)
+                Bitmap.createBitmap(source, x, 0, actualCropW, source.height)
+            }
+            else -> {
+                val actualCropH = (source.width / targetRatio).toInt().coerceAtLeast(1)
+                val y = when (config.cropAlignment) {
+                    CropAlignment.CENTER, CropAlignment.LEFT, CropAlignment.RIGHT ->
+                        (source.height - actualCropH) / 2
+                    CropAlignment.TOP, CropAlignment.TOP_LEFT, CropAlignment.TOP_RIGHT -> 0
+                    CropAlignment.BOTTOM, CropAlignment.BOTTOM_LEFT, CropAlignment.BOTTOM_RIGHT ->
+                        source.height - actualCropH
+                    CropAlignment.FACE -> (source.height - actualCropH) / 4
+                }.coerceIn(0, source.height - actualCropH)
+                Bitmap.createBitmap(source, 0, y, source.width, actualCropH)
+            }
         }
     }
 
