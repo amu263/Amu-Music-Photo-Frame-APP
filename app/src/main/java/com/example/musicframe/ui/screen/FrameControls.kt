@@ -118,6 +118,7 @@ private fun frameModeSelector(
                     FrameMode.MUSIC_FLOW -> "流光"
                     FrameMode.MUSIC_SOLID -> "纯色"
                     FrameMode.ZODIAC_HOROSCOPE -> "星座"
+                    FrameMode.MUSIC_RHYTHM -> "律动"
                 },
                 isSelected = currentMode == mode,
                 onClick = { onModeSelect(mode) },

@@ -109,6 +109,7 @@ class FrameComposer {
             FrameMode.MUSIC_FLOW -> drawMusicFlow(renderParams, config, musicMetadata)
             FrameMode.MUSIC_SOLID -> drawMusicSolid(renderParams, config, musicMetadata)
             FrameMode.ZODIAC_HOROSCOPE -> drawZodiacHoroscope(renderParams, config, musicMetadata)
+            FrameMode.MUSIC_RHYTHM -> drawMusicRhythm(renderParams, config, musicMetadata)
         }
     }
 
@@ -760,6 +761,13 @@ class FrameComposer {
         if (headphoneInfo == null) return emptyList()
         val readable = headphoneInfo.asDisplayLine()
         return if (readable.isNotBlank()) listOf(readable) else emptyList()
+    }
+
+    
+    private fun drawMusicRhythm(renderParams: DrawRenderParams, config: FrameConfig, musicMetadata: MusicMetadata?): Bitmap {
+        val base = drawMusicSolid(renderParams, config, musicMetadata)
+        val dominantColor = musicMetadata?.dominantColor ?: 0xFF333333.toInt()
+        return AudioVisualizerEngine.applyRhythmEffect(base, dominantColor, config.rhythmConfig)
     }
 
     private fun invertedColor(color: Int): Int {

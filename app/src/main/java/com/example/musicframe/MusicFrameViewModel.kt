@@ -20,6 +20,8 @@ import com.example.musicframe.export.ImageExporter
 import com.example.musicframe.export.ImageExporter.MotionPhotoInfo
 import com.example.musicframe.image.FrameComposer
 import com.example.musicframe.image.FrameConfig
+import com.example.musicframe.image.AudioVisualizerEngine.RhythmConfig
+import com.example.musicframe.image.AudioVisualizerEngine.RhythmEffect
 import com.example.musicframe.image.FrameMode
 import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.image.PhotoMetadataReader
@@ -280,6 +282,18 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         rebuildFrame()
     }
 
+    fun selectRhythmEffect(effect: RhythmEffect) {
+        _uiState.update { it.copy(rhythmConfig = it.rhythmConfig.copy(effect = effect)) }
+        rebuildFrame()
+    }
+    fun updateRhythmIntensity(v: Float) {
+        _uiState.update { it.copy(rhythmConfig = it.rhythmConfig.copy(intensity = v)) }
+        rebuildFrame()
+    }
+    fun toggleRhythmPanel() {
+        _uiState.update { it.copy(rhythmExpanded = !it.rhythmExpanded) }
+    }
+
     fun saveFramedImage() {
         val bitmap = _uiState.value.framedBitmap ?: return
         val format = _uiState.value.exportFormat
@@ -365,7 +379,8 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
                 photoMetadata = state.photoMetadata,
                 useDarkBackground = state.useDarkBackground,
                 userBirthdayMonth = state.userBirthdayMonth,
-                userBirthdayDay = state.userBirthdayDay
+                userBirthdayDay = state.userBirthdayDay,
+                rhythmConfig = state.rhythmConfig
             )
             val framed = frameComposer.compose(
                 source = source,

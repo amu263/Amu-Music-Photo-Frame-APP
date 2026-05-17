@@ -111,6 +111,7 @@ import com.example.musicframe.image.PhotoMetadataReader
 import com.example.musicframe.media.MusicMetadataBroadcaster
 import com.example.musicframe.media.NowPlayingListenerService
 import com.example.musicframe.ui.screen.exportFormatSelector
+import com.example.musicframe.ui.screen.rhythmControlsPanel
 import com.example.musicframe.ui.screen.frameControls
 import com.example.musicframe.ui.theme.musicFrameTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -481,6 +482,17 @@ fun musicFrameScreen(
                 }
             }
         )
+
+        // 音乐律动控制（仅在律动模式时显示）
+        if (state.frameMode == FrameMode.MUSIC_RHYTHM) {
+            rhythmControlsPanel(
+                config = state.rhythmConfig,
+                isExpanded = state.rhythmExpanded,
+                onToggleExpand = { viewModel.toggleRhythmPanel() },
+                onEffectSelect = { viewModel.selectRhythmEffect(it) },
+                onIntensityChange = { viewModel.updateRhythmIntensity(it) }
+            )
+        }
 
         // 星座运势模式 - 生日输入（仅在选中星座模式时显示）
         if (state.frameMode == FrameMode.ZODIAC_HOROSCOPE) {
