@@ -53,8 +53,8 @@ object TemplateLayoutRenderer {
         canvas.drawColor(bg)
         canvas.drawBitmap(img, border.toFloat(), border.toFloat(), null)
 
-        val titlePaint = textPaint(tc, bottom * 0.18f, Typeface.BOLD)
-        val subPaint = textPaint(tc, bottom * 0.12f, Typeface.NORMAL)
+        val titlePaint = textPaint(tc, bottom * 0.18f, Typeface.create(Typeface.DEFAULT, Typeface.BOLD))
+        val subPaint = textPaint(tc, bottom * 0.12f, Typeface.DEFAULT)
 
         mm?.let {
             val cx = outW / 2f
@@ -85,8 +85,8 @@ object TemplateLayoutRenderer {
         canvas.drawRect(0f, img.height - stripH.toFloat(), img.width.toFloat(), outH.toFloat(), Paint().apply { shader = gradient })
 
         val cx = img.width / 2f
-        val titlePaint = textPaint(tc, stripH * 0.22f, Typeface.BOLD)
-        val subPaint = textPaint(Color.argb(180, Color.red(tc), Color.green(tc), Color.blue(tc)), stripH * 0.16f, Typeface.NORMAL)
+        val titlePaint = textPaint(tc, stripH * 0.22f, Typeface.create(Typeface.DEFAULT, Typeface.BOLD))
+        val subPaint = textPaint(Color.argb(180, Color.red(tc), Color.green(tc), Color.blue(tc)), stripH * 0.16f, Typeface.DEFAULT)
 
         mm?.let {
             canvas.drawText(it.title.ifEmpty { " " }, cx, img.height + stripH * 0.35f, titlePaint)
@@ -108,8 +108,8 @@ object TemplateLayoutRenderer {
         canvas.drawBitmap(img, 0f, 0f, null)
 
         val txtX = (img.width + gap).toFloat()
-        val titlePaint = textPaint(tc, outH * 0.06f, Typeface.BOLD)
-        val subPaint = textPaint(Color.argb(180, Color.red(tc), Color.green(tc), Color.blue(tc)), outH * 0.04f, Typeface.NORMAL)
+        val titlePaint = textPaint(tc, outH * 0.06f, Typeface.create(Typeface.DEFAULT, Typeface.BOLD))
+        val subPaint = textPaint(Color.argb(180, Color.red(tc), Color.green(tc), Color.blue(tc)), outH * 0.04f, Typeface.DEFAULT)
 
         mm?.let {
             drawMultilineText(canvas, it.title, txtX + textW / 2, outH * 0.35f, textW.toFloat(), titlePaint)
@@ -131,12 +131,12 @@ object TemplateLayoutRenderer {
         canvas.drawColor(Color.argb(overlayAlpha, Color.red(bg), Color.green(bg), Color.blue(bg)))
 
         mm?.let {
-            val titlePaint = textPaint(Color.WHITE, h * 0.08f, Typeface.BOLD).apply {
+            val titlePaint = textPaint(Color.WHITE, h * 0.08f, Typeface.create(Typeface.DEFAULT, Typeface.BOLD)).apply {
                 setShadowLayer(4f, 0f, 2f, Color.BLACK)
             }
             drawMultilineText(canvas, it.title.uppercase(), w / 2, h * 0.4f, w * 0.9f, titlePaint)
 
-            val subPaint = textPaint(Color.argb(220, 255, 255, 255), h * 0.04f, Typeface.NORMAL)
+            val subPaint = textPaint(Color.argb(220, 255, 255, 255), h * 0.04f, Typeface.DEFAULT)
             drawMultilineText(canvas, "${it.artist}\n${it.album}", w / 2, h * 0.65f, w * 0.8f, subPaint)
         }
 
@@ -190,8 +190,8 @@ object TemplateLayoutRenderer {
         canvas.drawColor(bg)
         canvas.drawBitmap(img, pad.toFloat(), pad.toFloat(), null)
 
-        val titlePaint = textPaint(tc, infoH * 0.28f, Typeface.BOLD)
-        val subPaint = textPaint(Color.argb(150, Color.red(tc), Color.green(tc), Color.blue(tc)), infoH * 0.2f, Typeface.NORMAL)
+        val titlePaint = textPaint(tc, infoH * 0.28f, Typeface.create(Typeface.DEFAULT, Typeface.BOLD))
+        val subPaint = textPaint(Color.argb(150, Color.red(tc), Color.green(tc), Color.blue(tc)), infoH * 0.2f, Typeface.DEFAULT)
         val cx = outW / 2f
 
         mm?.let {
@@ -214,11 +214,11 @@ object TemplateLayoutRenderer {
 
         val cx = img.width / 2f
         mm?.let {
-            val titlePaint = textPaint(Color.WHITE, barH * 0.3f, Typeface.BOLD)
+            val titlePaint = textPaint(Color.WHITE, barH * 0.3f, Typeface.create(Typeface.DEFAULT, Typeface.BOLD))
             canvas.drawText(it.title.ifEmpty { " " }, cx, barH * 0.55f, titlePaint)
         }
         pm?.let {
-            val camPaint = textPaint(Color.argb(150, 255, 255, 255), barH * 0.2f, Typeface.NORMAL)
+            val camPaint = textPaint(Color.argb(150, 255, 255, 255), barH * 0.2f, Typeface.DEFAULT)
             canvas.drawText(it.getCameraInfoText() ?: "", cx, outH - barH * 0.35f, camPaint)
         }
 
@@ -241,7 +241,7 @@ object TemplateLayoutRenderer {
             val badgePaint = Paint().apply { color = Color.argb(180, Color.red(bg), Color.green(bg), Color.blue(bg)) }
             canvas.drawRoundRect(RectF(bx, by, bx + badgeW, by + badgeH), 12f, 12f, badgePaint)
 
-            val textPaint = textPaint(tc, badgeH * 0.35f, Typeface.BOLD)
+            val textPaint = textPaint(tc, badgeH * 0.35f, Typeface.create(Typeface.DEFAULT, Typeface.BOLD))
             canvas.drawText("🎵 ${meta.title}", bx + badgeW / 2, by + badgeH * 0.6f, textPaint)
         }
 
