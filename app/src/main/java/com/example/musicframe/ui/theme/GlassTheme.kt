@@ -51,7 +51,7 @@ object GlassTheme {
     var dynamicSeedColor by mutableStateOf(GlassPrimary)
     var isDark by mutableStateOf(false)
 
-    private val LightGlassColors = lightColorScheme(
+    internal val LightGlassColors = lightColorScheme(
         primary = GlassPrimary,
         onPrimary = GlassOnPrimary,
         primaryContainer = Color(0xFFEADDFF),
@@ -76,7 +76,7 @@ object GlassTheme {
         onError = Color(0xFFFFFFFF)
     )
 
-    private val DarkGlassColors = darkColorScheme(
+    internal val DarkGlassColors = darkColorScheme(
         primary = Color(0xFFD0BCFF),
         onPrimary = Color(0xFF381E72),
         primaryContainer = Color(0xFF4F378B),
@@ -102,8 +102,8 @@ object GlassTheme {
 
 @Composable
 fun glassTheme(
-    darkTheme: Boolean = isSystemInDarkTheme() && GlassTheme.currentMode != ThemeMode.LIGHT
-        || GlassTheme.currentMode == ThemeMode.DARK,
+    darkTheme: Boolean = isSystemInDarkTheme() && GlassTheme.currentMode != GlassTheme.ThemeMode.LIGHT
+        || GlassTheme.currentMode == GlassTheme.ThemeMode.DARK,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) GlassTheme.DarkGlassColors else GlassTheme.LightGlassColors
