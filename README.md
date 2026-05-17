@@ -6,8 +6,8 @@
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-purple?logo=kotlin)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-2025.02.00-blue?logo=jetpackcompose)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
-![Version](https://img.shields.io/badge/Version-1.4-blue)
-![VersionCode](https://img.shields.io/badge/VersionCode-37-green)
+![Version](https://img.shields.io/badge/Version-1.5-blue)
+![VersionCode](https://img.shields.io/badge/VersionCode-38-green)
 
 **一款智能音乐取色相框生成工具 · 让每一张照片都有专属的 BGM**
 
@@ -19,7 +19,43 @@
 
 ---
 
-## 🌟 新版本 v1.4 更新内容
+## 🌟 新版本 v1.5 更新内容
+
+### 🎨 音乐封面采样颜色算法全面升级
+
+**彻底重写封面取色与色彩增强管线**，让 MUSIC_FLOW（音乐流光）和 MUSIC_SOLID（音乐纯色）模式的色彩更鲜艳、更大胆、更有高级感。
+
+#### 取色升级：从「安全均值」到「大胆鲜艳」
+
+| 旧算法 | 新算法 |
+|--------|--------|
+| `Palette.getDominantColor()` — 取最安全的均值色 | `extractPremiumColor()` — 优先 Vibrant 鲜艳色板 |
+| 灰暗、保守、缺乏辨识度 | 鲜艳、大胆、高级感十足 |
+
+**取色优先级**：DarkVibrant → Vibrant → LightVibrant → Dominant（兜底）
+
+#### 智能 Vibrance 色彩增强（三项核心算法）
+
+| 算法 | 效果 | 技术细节 |
+|------|------|----------|
+| **`boostVibrancy()`** | 通用自然饱和度增强 | 渐进式：低饱和猛拉 2.8x，高饱和克制微调 |
+| **`enhanceVibrancyForLightMode()`** | 浅色模式鲜亮优化 | 饱和度 3.5x 起跳 + 亮度锁定高级亮区间(0.55-0.85) + 色温暖调 |
+| **`enhanceVibrancyForDarkMode()`** | 深色模式浓郁优化 | 饱和提升 + 亮度深沉但不过黑，保持色彩辨识度 |
+
+#### MUSIC_FLOW 条纹交替色革新
+
+- **旧**：纯亮度 ±40%/50%，单调乏味
+- **新**：色相偏移 ±18° + 智能亮度对比，条纹层次丰富
+
+#### 改动范围
+
+- `NowPlayingListenerService.kt` — 封面取色器重写
+- `FrameConfig.kt` — +156 行智能色彩增强算法
+- 零破坏性：PREMIUM_LEICA / CUSTOM_LEICA / ZODIAC_HOROSCOPE 模式不受影响
+
+---
+
+## 🌟 v1.4 更新内容
 
 ### 🔔 通知权限修复（重要！）
 
