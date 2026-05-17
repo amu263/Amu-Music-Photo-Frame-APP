@@ -14,7 +14,7 @@ data class CanvasConfig(
 ) {
     val effectiveRatio: Float
         get() = when (aspectRatio) {
-            AspectRatio.CUSTOM -> customRatioW.toFloat() / customRatioH.toFloat().coerceAtLeast(1)
+            AspectRatio.CUSTOM -> customRatioW.toFloat() / customRatioH.toFloat().coerceAtLeast(1f)
             else -> aspectRatio.ratio
         }
 }
