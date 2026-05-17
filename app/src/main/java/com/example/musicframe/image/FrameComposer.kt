@@ -109,6 +109,7 @@ class FrameComposer {
             FrameMode.MUSIC_FLOW -> drawMusicFlow(renderParams, config, musicMetadata)
             FrameMode.MUSIC_SOLID -> drawMusicSolid(renderParams, config, musicMetadata)
             FrameMode.ZODIAC_HOROSCOPE -> drawZodiacHoroscope(renderParams, config, musicMetadata)
+            FrameMode.TEMPLATE -> TemplateLayoutRenderer.render(source, config, config.templateConfig, musicMetadata, config.photoMetadata)
         }
     }
 

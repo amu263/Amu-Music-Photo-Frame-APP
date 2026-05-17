@@ -20,6 +20,7 @@ import com.example.musicframe.export.ImageExporter
 import com.example.musicframe.export.ImageExporter.MotionPhotoInfo
 import com.example.musicframe.image.FrameComposer
 import com.example.musicframe.image.FrameConfig
+import com.example.musicframe.image.LayoutTemplate
 import com.example.musicframe.image.FrameMode
 import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.image.PhotoMetadataReader
@@ -280,6 +281,14 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
         rebuildFrame()
     }
 
+    fun selectTemplate(template: LayoutTemplate) {
+        _uiState.update { it.copy(templateConfig = it.templateConfig.copy(template = template)) }
+        rebuildFrame()
+    }
+    fun toggleTemplatePanel() {
+        _uiState.update { it.copy(templateExpanded = !it.templateExpanded) }
+    }
+
     fun saveFramedImage() {
         val bitmap = _uiState.value.framedBitmap ?: return
         val format = _uiState.value.exportFormat
@@ -365,7 +374,8 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
                 photoMetadata = state.photoMetadata,
                 useDarkBackground = state.useDarkBackground,
                 userBirthdayMonth = state.userBirthdayMonth,
-                userBirthdayDay = state.userBirthdayDay
+                userBirthdayDay = state.userBirthdayDay,
+                templateConfig = state.templateConfig
             )
             val framed = frameComposer.compose(
                 source = source,

@@ -106,6 +106,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.musicframe.domain.model.FrameControlAction
 import com.example.musicframe.image.FrameMode
+import com.example.musicframe.image.LayoutTemplate
+import com.example.musicframe.image.TemplateConfig
 import com.example.musicframe.image.PhotoMetadata
 import com.example.musicframe.image.PhotoMetadataReader
 import com.example.musicframe.media.MusicMetadataBroadcaster
@@ -481,6 +483,16 @@ fun musicFrameScreen(
                 }
             }
         )
+
+        // 模板选择（仅在模板模式时显示）
+        if (state.frameMode == FrameMode.TEMPLATE) {
+            templateSelectorCard(
+                config = state.templateConfig,
+                isExpanded = state.templateExpanded,
+                onToggleExpand = { viewModel.toggleTemplatePanel() },
+                onSelect = { viewModel.selectTemplate(it) }
+            )
+        }
 
         // 星座运势模式 - 生日输入（仅在选中星座模式时显示）
         if (state.frameMode == FrameMode.ZODIAC_HOROSCOPE) {
@@ -1195,5 +1207,54 @@ private fun getZodiacInfo(month: Int, day: Int): String {
         doy >= 295 && doy < 326 -> "天蝎座"
         doy >= 326 && doy < 356 -> "射手座"
         else -> "白羊座"
+    }
+}
+
+@Composable
+private fun templateSelectorCard(
+    config: TemplateConfig,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onSelect: (LayoutTemplate) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onToggleExpand),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("📐 模板布局", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(if (isExpanded) "▲" else "▼", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (isExpanded) {
+                Spacer(modifier = Modifier.height(12.dp))
+                LayoutTemplate.entries.chunked(4).forEach { row ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        row.forEach { tmpl ->
+                            val sel = config.template == tmpl
+                            Box(
+                                modifier = Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                                    .background(if (sel) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                    .border(1.dp, if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                    .clickable { onSelect(tmpl) }.padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(tmpl.emoji, style = MaterialTheme.typography.titleSmall)
+                                    Text(tmpl.label, style = MaterialTheme.typography.labelSmall, maxLines = 1, color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                                }
+                            }
+                        }
+                        repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+            }
+        }
     }
 }

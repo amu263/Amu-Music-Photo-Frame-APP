@@ -1,6 +1,8 @@
 package com.example.musicframe.image
 
 import com.example.musicframe.domain.model.FrameColorMode
+import com.example.musicframe.image.LayoutTemplate
+import com.example.musicframe.image.TemplateConfig
 
 data class FrameConfig(
     val frameMode: FrameMode = FrameMode.PREMIUM_LEICA,
@@ -13,7 +15,8 @@ data class FrameConfig(
     val useDarkBackground: Boolean = false,
     // 星座运势模式 - 用户生日
     val userBirthdayMonth: Int = 0,
-    val userBirthdayDay: Int = 0
+    val userBirthdayDay: Int = 0,
+    val templateConfig: TemplateConfig = TemplateConfig()
 ) {
     fun headphoneColor(default: Int): Int = headphoneTextColor ?: default
     
@@ -212,7 +215,8 @@ enum class FrameMode {
     CUSTOM_LEICA,
     MUSIC_FLOW,
     MUSIC_SOLID,
-    ZODIAC_HOROSCOPE
+    ZODIAC_HOROSCOPE,
+    TEMPLATE
 }
 
 const val MIN_TEXT_SCALE = 0.6f
