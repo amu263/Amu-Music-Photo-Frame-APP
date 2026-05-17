@@ -112,7 +112,9 @@ import com.example.musicframe.media.MusicMetadataBroadcaster
 import com.example.musicframe.media.NowPlayingListenerService
 import com.example.musicframe.ui.screen.exportFormatSelector
 import com.example.musicframe.ui.screen.frameControls
-import com.example.musicframe.ui.theme.musicFrameTheme
+import com.example.musicframe.ui.components.ThemeToggleBar
+import com.example.musicframe.ui.theme.GlassTheme
+import com.example.musicframe.ui.theme.glassTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import java.io.File
@@ -260,7 +262,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            musicFrameTheme {
+            glassTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val permissionList = remember {
                         buildList {
@@ -423,6 +425,9 @@ fun musicFrameScreen(
     ) {
         // 顶部标题
         topBar()
+        
+        // 主题切换
+        ThemeToggleBar()
         
         // 图片预览卡片
         imagePreviewCard(
