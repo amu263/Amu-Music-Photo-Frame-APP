@@ -79,7 +79,7 @@ class NowPlayingListenerService : NotificationListenerService() {
 
         val artwork = notification.loadAlbumArt(this)
         val dominantColor = artwork?.let { bmp ->
-            Palette.from(bmp).generate().getDominantColor(DEFAULT_FALLBACK_COLOR)
+            extractPremiumColor(bmp)
         } ?: DEFAULT_FALLBACK_COLOR
 
         val metadata = MusicMetadata(
@@ -282,6 +282,46 @@ class NowPlayingListenerService : NotificationListenerService() {
         } catch (e: Exception) {
             Log.e("NowPlayingListener", "写入日志失败：${e.message}")
         }
+    }
+
+    /**
+     * 从专辑封面提取高级感主色调。
+     * 优先使用 Vibrant 色板（鲜艳/大胆），而非平庸的 Dominant 均值色。
+     * 提取后应用基础 Vibrance 提升，去除灰感。
+     */
+    private fun extractPremiumColor(bitmap: Bitmap): Int {
+        val palette = Palette.from(bitmap).generate()
+        // 优先取鲜艳色板：暗鲜 > 鲜 > 亮鲜 > 主色
+        val rawColor = when {
+            palette.darkVibrantSwatch != null -> palette.darkVibrantSwatch!!.rgb
+            palette.vibrantSwatch != null -> palette.vibrantSwatch!!.rgb
+            palette.lightVibrantSwatch != null -> palette.lightVibrantSwatch!!.rgb
+            palette.dominantSwatch != null -> palette.dominantSwatch!!.rgb
+            else -> DEFAULT_FALLBACK_COLOR
+        }
+        // 基础 Vibrance 提升：去除 Raw Palette 可能残留的灰感
+        return boostBaseVibrancy(rawColor)
+    }
+
+    /**
+     * 基础 Vibrance 提升：适度增加饱和度，低饱和区多提、高饱和区少提。
+     */
+    private fun boostBaseVibrancy(color: Int): Int {
+        val hsv = FloatArray(3)
+        android.graphics.Color.colorToHSV(color, hsv)
+        val s = hsv[1]
+        // 渐进式饱和度提升：低饱和多提（2x），中饱和适度（1.5x），高饱和少提（1.2x）
+        hsv[1] = when {
+            s < 0.25f -> (s * 2.0f).coerceAtMost(0.9f)
+            s < 0.5f -> (s * 1.5f).coerceAtMost(0.9f)
+            s < 0.7f -> (s * 1.2f).coerceAtMost(0.92f)
+            else -> s
+        }
+        // 如果颜色过暗（V < 0.3），适当提亮避免沉闷
+        if (hsv[2] < 0.3f) {
+            hsv[2] = (hsv[2] + 0.15f).coerceAtMost(0.7f)
+        }
+        return android.graphics.Color.HSVToColor(hsv)
     }
 
     companion object {
