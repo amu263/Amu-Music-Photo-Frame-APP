@@ -191,16 +191,15 @@ object FilmGradingEngine {
     private fun blendMatrix(preset: ColorMatrix, intensity: Float) {
         if (intensity >= 1f) return
         val identity = ColorMatrix()
-        val blended = ColorMatrix().apply {
-            val p = preset.floatArray.copyOf()
-            val i = identity.floatArray
-            val result = FloatArray(20)
-            for (j in 0 until 20) {
-                result[j] = i[j] + (p[j] - i[j]) * intensity
-            }
-            set(result)
+        val p = FloatArray(20)
+        val i = FloatArray(20)
+        preset.getArray().copyInto(p)
+        identity.getArray().copyInto(i)
+        val result = FloatArray(20)
+        for (j in 0 until 20) {
+            result[j] = i[j] + (p[j] - i[j]) * intensity
         }
-        preset.set(blended)
+        preset.set(result)
     }
 
     private fun applyFilmGrain(canvas: Canvas, bitmap: Bitmap, amount: Float) {
@@ -219,9 +218,9 @@ object FilmGradingEngine {
                 val alpha = ((amount * 0.15f) * 255).toInt()
                 paint.color = android.graphics.Color.argb(
                     alpha,
-                    (128 + noise).coerceIn(0, 255),
-                    (128 + noise).coerceIn(0, 255),
-                    (128 + noise).coerceIn(0, 255)
+                    (128 + noise).toInt().coerceIn(0, 255),
+                    (128 + noise).toInt().coerceIn(0, 255),
+                    (128 + noise).toInt().coerceIn(0, 255)
                 )
                 grainCanvas.drawRect(
                     x.toFloat(), y.toFloat(),
