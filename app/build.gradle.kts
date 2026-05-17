@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.musicframe"
         minSdk = 26
         targetSdk = 35
-        versionCode = 38
-        versionName = "1.5"
+        versionCode = 40
+        versionName = "1.6-canvas"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
