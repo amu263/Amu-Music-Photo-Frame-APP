@@ -282,6 +282,8 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
     fun setDarkBackground(enabled: Boolean) {
         _uiState.update { it.copy(useDarkBackground = enabled) }
         rebuildFrame()
+    }
+
     // ═══ 画幅 + 模板 + 自定义位置 ═══
     fun selectAspectRatio(ratio: AspectRatio) { _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(aspectRatio = ratio)) }; rebuildFrame() }
     fun updatePadding(pct: Float) { _uiState.update { it.copy(canvasConfig = it.canvasConfig.copy(paddingPercent = pct)) }; rebuildFrame() }
@@ -293,7 +295,6 @@ class MusicFrameViewModel(application: Application) : AndroidViewModel(applicati
     fun toggleTemplatePanel() { _uiState.update { it.copy(templateExpanded = !it.templateExpanded) } }
     fun setCustomLocationText(text: String) { _uiState.update { it.copy(customLocationText = text) }; rebuildFrame() }
     fun setUseCustomLocation(enabled: Boolean) { _uiState.update { it.copy(useCustomLocation = enabled) }; rebuildFrame() }
-    }
 
     fun saveFramedImage() {
         val bitmap = _uiState.value.framedBitmap ?: return
